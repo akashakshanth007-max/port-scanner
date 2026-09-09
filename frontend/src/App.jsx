@@ -3,7 +3,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import "./App.css";
 
-const API_URL = "https://port-scanner-3.onrender.com";
+const API_URL = "http://127.0.0.1:5000";
 
 function App() {
   // ============================================================
@@ -34,17 +34,58 @@ function App() {
   const [scanDuration, setScanDuration] = useState("");
 
   // ============================================================
+  // SCAN OPTIONS
+  // ============================================================
+
+  const [showScanOptions, setShowScanOptions] =
+    useState(false);
+
+  const [selectedOptions, setSelectedOptions] =
+    useState([]);
+
+  const scanOptions = [
+    {
+      id: "tcp",
+      label: "TCP Scan",
+    },
+    {
+      id: "udp",
+      label: "UDP Scan",
+    },
+    {
+      id: "syn",
+      label: "SYN Scan",
+    },
+    {
+      id: "service",
+      label: "Service Version Detection",
+    },
+    {
+      id: "os",
+      label: "OS Detection",
+    },
+    {
+      id: "aggressive",
+      label: "Aggressive Scan",
+    },
+  ];
+
+  // ============================================================
   // EMAIL
   // ============================================================
 
-  const [recipientEmail, setRecipientEmail] = useState("");
+  const [recipientEmail, setRecipientEmail] =
+    useState("");
 
   // ============================================================
   // TOKEN
   // ============================================================
 
   const getToken = () => {
-    return localStorage.getItem("access_token") || token;
+    return (
+      localStorage.getItem("access_token") ||
+      token
+    );
   };
 
   // ============================================================
@@ -61,7 +102,28 @@ function App() {
   };
 
   // ============================================================
-  // LOAD SUPABASE HISTORY
+  // TOGGLE SCAN OPTION
+  // ============================================================
+
+  const toggleScanOption = (optionId) => {
+    setSelectedOptions((previousOptions) => {
+      if (
+        previousOptions.includes(optionId)
+      ) {
+        return previousOptions.filter(
+          (item) => item !== optionId
+        );
+      }
+
+      return [
+        ...previousOptions,
+        optionId,
+      ];
+    });
+  };
+
+  // ============================================================
+  // LOAD HISTORY
   // ============================================================
 
   useEffect(() => {
@@ -82,15 +144,13 @@ function App() {
         `${API_URL}/history`,
         {
           method: "GET",
+
           headers: {
-            Authorization: `Bearer ${currentToken}`,
+            Authorization:
+              `Bearer ${currentToken}`,
           },
         }
       );
-
-      // --------------------------------------------------------
-      // TOKEN EXPIRED / INVALID
-      // --------------------------------------------------------
 
       if (
         response.status === 401 ||
@@ -105,7 +165,8 @@ function App() {
         return;
       }
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         setMessage(
@@ -119,7 +180,6 @@ function App() {
       setHistory(
         data.history || []
       );
-
     } catch (error) {
       console.error(
         "History error:",
@@ -176,9 +236,7 @@ function App() {
         return;
       }
 
-      // --------------------------------------------------------
       // REGISTER
-      // --------------------------------------------------------
 
       if (
         authMode === "register"
@@ -194,9 +252,7 @@ function App() {
         return;
       }
 
-      // --------------------------------------------------------
       // LOGIN
-      // --------------------------------------------------------
 
       localStorage.setItem(
         "access_token",
@@ -222,7 +278,6 @@ function App() {
       setMessage(
         "Login successful."
       );
-
     } catch (error) {
       console.error(
         "Authentication error:",
@@ -262,13 +317,17 @@ function App() {
 
     setRecipientEmail("");
 
+    setSelectedOptions([]);
+
+    setShowScanOptions(false);
+
     setMessage(
       "Logged out successfully."
     );
   };
 
   // ============================================================
-  // SCAN
+  // SCAN TARGET
   // ============================================================
 
   const scanTarget = async () => {
@@ -280,7 +339,18 @@ function App() {
       return;
     }
 
-    const currentToken = getToken();
+    if (
+      selectedOptions.length === 0
+    ) {
+      setMessage(
+        "Please select at least one scanning option."
+      );
+
+      return;
+    }
+
+    const currentToken =
+      getToken();
 
     if (!currentToken) {
       setMessage(
@@ -297,6 +367,8 @@ function App() {
     setResults([]);
 
     setScanDuration("");
+
+    setShowScanOptions(false);
 
     try {
       const response = await fetch(
@@ -315,13 +387,12 @@ function App() {
           body: JSON.stringify({
             target:
               target.trim(),
+
+            scan_options:
+              selectedOptions,
           }),
         }
       );
-
-      // --------------------------------------------------------
-      // TOKEN ERROR
-      // --------------------------------------------------------
 
       if (
         response.status === 401 ||
@@ -339,10 +410,6 @@ function App() {
       const data =
         await response.json();
 
-      // --------------------------------------------------------
-      // OTHER ERROR
-      // --------------------------------------------------------
-
       if (!response.ok) {
         console.error(
           "Scan error:",
@@ -358,20 +425,12 @@ function App() {
         return;
       }
 
-      // --------------------------------------------------------
-      // RESULTS
-      // --------------------------------------------------------
-
       const scanResults =
         data.results || [];
 
       setResults(
         scanResults
       );
-
-      // --------------------------------------------------------
-      // USE BACKEND SCAN DURATION
-      // --------------------------------------------------------
 
       const duration =
         data.scan_duration ??
@@ -381,20 +440,11 @@ function App() {
         duration
       );
 
-      // --------------------------------------------------------
-      // REFRESH SUPABASE HISTORY
-      // --------------------------------------------------------
-
       await loadHistory();
-
-      // --------------------------------------------------------
-      // SUCCESS MESSAGE
-      // --------------------------------------------------------
 
       setMessage(
         `Scan completed successfully. ${scanResults.length} result(s) found.`
       );
-
     } catch (error) {
       console.error(
         "Scan error:",
@@ -402,9 +452,8 @@ function App() {
       );
 
       setMessage(
-        "Unable to connect to backend. Make sure Flask server is running."
+        "Unable to connect to backend."
       );
-
     } finally {
       setLoading(false);
     }
@@ -422,12 +471,9 @@ function App() {
     let savedResults =
       item.results || [];
 
-    // ----------------------------------------------------------
-    // SUPABASE JSON SAFETY
-    // ----------------------------------------------------------
-
     if (
-      typeof savedResults === "string"
+      typeof savedResults ===
+      "string"
     ) {
       try {
         savedResults =
@@ -457,205 +503,135 @@ function App() {
   // DELETE ONE HISTORY
   // ============================================================
 
-  const deleteHistoryItem = async (item) => {
-    const confirmDelete =
-      window.confirm(
-        "Delete this scan history?"
-      );
-
-    if (!confirmDelete) {
-      return;
-    }
-
-    try {
-      const currentToken = getToken();
-
-      if (!currentToken) {
-        setMessage(
-          "Please login again."
+  const deleteHistoryItem =
+    async (item) => {
+      const confirmDelete =
+        window.confirm(
+          "Delete this scan history?"
         );
 
+      if (!confirmDelete) {
         return;
       }
 
-      // --------------------------------------------------------
-      // DELETE FROM SUPABASE THROUGH BACKEND
-      // --------------------------------------------------------
+      try {
+        const currentToken =
+          getToken();
 
-      const response = await fetch(
-        `${API_URL}/history/${item.id}`,
-        {
-          method: "DELETE",
+        if (!currentToken) {
+          setMessage(
+            "Please login again."
+          );
 
-          headers: {
-            Authorization:
-              `Bearer ${currentToken}`,
-          },
+          return;
         }
-      );
 
-      // --------------------------------------------------------
-      // TOKEN ERROR
-      // --------------------------------------------------------
+        const response =
+          await fetch(
+            `${API_URL}/history/${item.id}`,
+            {
+              method: "DELETE",
 
-      if (
-        response.status === 401 ||
-        response.status === 422
-      ) {
-        handleLogout();
+              headers: {
+                Authorization:
+                  `Bearer ${currentToken}`,
+              },
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          setMessage(
+            data.error ||
+              "Failed to delete scan history."
+          );
+
+          return;
+        }
+
+        await loadHistory();
 
         setMessage(
-          "Session expired. Please login again."
+          "Scan history deleted successfully."
         );
-
-        return;
-      }
-
-      const data =
-        await response.json();
-
-      // --------------------------------------------------------
-      // DELETE ERROR
-      // --------------------------------------------------------
-
-      if (!response.ok) {
+      } catch (error) {
         console.error(
           "Delete history error:",
-          data
+          error
         );
 
         setMessage(
-          data.details ||
-            data.error ||
-            "Failed to delete scan history."
+          "Unable to delete scan history."
         );
-
-        return;
       }
-
-      // --------------------------------------------------------
-      // REFRESH HISTORY FROM SUPABASE
-      // --------------------------------------------------------
-
-      await loadHistory();
-
-      setMessage(
-        "Scan history deleted successfully."
-      );
-
-    } catch (error) {
-      console.error(
-        "Delete history error:",
-        error
-      );
-
-      setMessage(
-        "Unable to delete scan history."
-      );
-    }
-  };
+    };
 
   // ============================================================
   // DELETE ALL HISTORY
   // ============================================================
 
-  const clearAllHistory = async () => {
-    const confirmDelete =
-      window.confirm(
-        "Delete all scan history?"
-      );
-
-    if (!confirmDelete) {
-      return;
-    }
-
-    try {
-      const currentToken = getToken();
-
-      if (!currentToken) {
-        setMessage(
-          "Please login again."
+  const clearAllHistory =
+    async () => {
+      const confirmDelete =
+        window.confirm(
+          "Delete all scan history?"
         );
 
+      if (!confirmDelete) {
         return;
       }
 
-      // --------------------------------------------------------
-      // DELETE ALL FROM SUPABASE THROUGH BACKEND
-      // --------------------------------------------------------
+      try {
+        const currentToken =
+          getToken();
 
-      const response = await fetch(
-        `${API_URL}/history`,
-        {
-          method: "DELETE",
-
-          headers: {
-            Authorization:
-              `Bearer ${currentToken}`,
-          },
+        if (!currentToken) {
+          return;
         }
-      );
 
-      // --------------------------------------------------------
-      // TOKEN ERROR
-      // --------------------------------------------------------
+        const response =
+          await fetch(
+            `${API_URL}/history`,
+            {
+              method: "DELETE",
 
-      if (
-        response.status === 401 ||
-        response.status === 422
-      ) {
-        handleLogout();
+              headers: {
+                Authorization:
+                  `Bearer ${currentToken}`,
+              },
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          setMessage(
+            data.error ||
+              "Failed to delete all history."
+          );
+
+          return;
+        }
+
+        setHistory([]);
 
         setMessage(
-          "Session expired. Please login again."
+          "All scan history deleted successfully."
         );
-
-        return;
-      }
-
-      const data =
-        await response.json();
-
-      // --------------------------------------------------------
-      // DELETE ERROR
-      // --------------------------------------------------------
-
-      if (!response.ok) {
+      } catch (error) {
         console.error(
           "Delete all history error:",
-          data
+          error
         );
 
         setMessage(
-          data.details ||
-            data.error ||
-            "Failed to delete all scan history."
+          "Unable to delete all history."
         );
-
-        return;
       }
-
-      // --------------------------------------------------------
-      // CLEAR CURRENT VIEW
-      // --------------------------------------------------------
-
-      setHistory([]);
-
-      setMessage(
-        "All scan history deleted successfully."
-      );
-
-    } catch (error) {
-      console.error(
-        "Delete all history error:",
-        error
-      );
-
-      setMessage(
-        "Unable to delete all scan history."
-      );
-    }
-  };
+    };
 
   // ============================================================
   // HTML REPORT
@@ -670,156 +646,110 @@ function App() {
       return;
     }
 
-    const rows = results
-      .map(
-        (item) => `
-          <tr>
-
-            <td>
-              ${item.port ?? "-"}
-            </td>
-
-            <td>
-              ${item.state ?? "-"}
-            </td>
-
-            <td>
-              ${item.service ?? "-"}
-            </td>
-
-            <td>
-              ${item.version ?? "-"}
-            </td>
-
-            <td>
-              ${item.risk ?? "-"}
-            </td>
-
-            <td>
-              ${item.recommendation ?? "-"}
-            </td>
-
-          </tr>
-        `
-      )
-      .join("");
+    const rows =
+      results
+        .map(
+          (item) => `
+<tr>
+  <td>${item.port ?? "-"}</td>
+  <td>${item.state ?? "-"}</td>
+  <td>${item.service ?? "-"}</td>
+  <td>${item.version ?? "-"}</td>
+  <td>${item.risk ?? "-"}</td>
+  <td>${item.recommendation ?? "-"}</td>
+</tr>
+`
+        )
+        .join("");
 
     const html = `
-      <!DOCTYPE html>
+<!DOCTYPE html>
 
-      <html>
+<html>
 
-      <head>
+<head>
 
-        <title>
-          Port Scanner Report
-        </title>
+<title>
+Port Scanner Report
+</title>
 
-        <style>
+<style>
 
-          body {
-            font-family: Arial, sans-serif;
-            margin: 40px;
-          }
+body {
+  font-family: Arial, sans-serif;
+  margin: 40px;
+}
 
-          h1 {
-            color: #222;
-          }
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
 
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-          }
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 10px;
+}
 
-          th,
-          td {
-            border: 1px solid #ccc;
-            padding: 10px;
-            text-align: left;
-          }
+th {
+  background: #f2f2f2;
+}
 
-          th {
-            background: #f2f2f2;
-          }
+</style>
 
-        </style>
+</head>
 
-      </head>
+<body>
 
-      <body>
+<h1>
+Port Scanner Report
+</h1>
 
-        <h1>
-          Port Scanner Report
-        </h1>
+<p>
+<strong>
+Target:
+</strong>
 
-        <p>
+${target}
+</p>
 
-          <strong>
-            Target:
-          </strong>
+<p>
+<strong>
+Scan Duration:
+</strong>
 
-          ${target}
+${scanDuration || "-"} seconds
+</p>
 
-        </p>
+<table>
 
-        <p>
+<thead>
 
-          <strong>
-            Scan Duration:
-          </strong>
+<tr>
 
-          ${scanDuration || "-"}
-          seconds
+<th>Port</th>
+<th>State</th>
+<th>Service</th>
+<th>Version</th>
+<th>Risk</th>
+<th>Recommendation</th>
 
-        </p>
+</tr>
 
-        <table>
+</thead>
 
-          <thead>
+<tbody>
 
-            <tr>
+${rows}
 
-              <th>
-                Port
-              </th>
+</tbody>
 
-              <th>
-                State
-              </th>
+</table>
 
-              <th>
-                Service
-              </th>
+</body>
 
-              <th>
-                Version
-              </th>
-
-              <th>
-                Risk
-              </th>
-
-              <th>
-                Recommendation
-              </th>
-
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            ${rows}
-
-          </tbody>
-
-        </table>
-
-      </body>
-
-      </html>
-    `;
+</html>
+`;
 
     const blob =
       new Blob(
@@ -879,9 +809,7 @@ function App() {
     const doc =
       new jsPDF();
 
-    doc.setFontSize(
-      18
-    );
+    doc.setFontSize(18);
 
     doc.text(
       "Port Scanner Report",
@@ -889,9 +817,7 @@ function App() {
       20
     );
 
-    doc.setFontSize(
-      11
-    );
+    doc.setFontSize(11);
 
     doc.text(
       `Target: ${target}`,
@@ -935,8 +861,7 @@ function App() {
           ],
         ],
 
-        body:
-          tableData,
+        body: tableData,
 
         styles: {
           fontSize: 8,
@@ -954,12 +879,163 @@ function App() {
   };
 
   // ============================================================
+  // XML REPORT
+  // ============================================================
+
+  const downloadXML = () => {
+    if (!results.length) {
+      setMessage(
+        "Please perform a scan first."
+      );
+
+      return;
+    }
+
+    const escapeXML = (value) => {
+      if (
+        value === null ||
+        value === undefined
+      ) {
+        return "-";
+      }
+
+      return String(value)
+        .replace(
+          /&/g,
+          "&amp;"
+        )
+        .replace(
+          /</g,
+          "&lt;"
+        )
+        .replace(
+          />/g,
+          "&gt;"
+        )
+        .replace(
+          /"/g,
+          "&quot;"
+        )
+        .replace(
+          /'/g,
+          "&apos;"
+        );
+    };
+
+    const resultsXML =
+      results
+        .map(
+          (item) => `
+  <result>
+
+    <port>
+      ${escapeXML(item.port)}
+    </port>
+
+    <state>
+      ${escapeXML(item.state)}
+    </state>
+
+    <service>
+      ${escapeXML(item.service)}
+    </service>
+
+    <version>
+      ${escapeXML(item.version)}
+    </version>
+
+    <risk>
+      ${escapeXML(item.risk)}
+    </risk>
+
+    <recommendation>
+      ${escapeXML(
+        item.recommendation
+      )}
+    </recommendation>
+
+  </result>
+`
+        )
+        .join("");
+
+    const xml =
+      `<?xml version="1.0" encoding="UTF-8"?>
+
+<portScannerReport>
+
+  <target>
+    ${escapeXML(target)}
+  </target>
+
+  <scanDuration>
+    ${escapeXML(
+      scanDuration
+    )}
+    seconds
+  </scanDuration>
+
+  <totalResults>
+    ${results.length}
+  </totalResults>
+
+  <results>
+
+${resultsXML}
+
+  </results>
+
+</portScannerReport>`;
+
+    const blob =
+      new Blob(
+        [xml],
+        {
+          type:
+            "application/xml",
+        }
+      );
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+    const link =
+      document.createElement(
+        "a"
+      );
+
+    link.href = url;
+
+    link.download =
+      `port-scan-${target}.xml`;
+
+    document.body.appendChild(
+      link
+    );
+
+    link.click();
+
+    document.body.removeChild(
+      link
+    );
+
+    URL.revokeObjectURL(
+      url
+    );
+
+    setMessage(
+      "XML report downloaded successfully."
+    );
+  };
+
+  // ============================================================
   // EMAIL REPORT
   // ============================================================
 
   const sendEmailReport =
     async () => {
-
       if (!results.length) {
         setMessage(
           "Please perform a scan first."
@@ -978,22 +1054,11 @@ function App() {
         return;
       }
 
-      if (
-        !recipientEmail.includes("@")
-      ) {
-        setMessage(
-          "Please enter a valid email address."
-        );
-
-        return;
-      }
-
       setMessage(
         "Sending email report..."
       );
 
       try {
-
         const response =
           await fetch(
             `${API_URL}/email-report`,
@@ -1008,11 +1073,9 @@ function App() {
                   recipient:
                     recipientEmail.trim(),
 
-                  target:
-                    target,
+                  target,
 
-                  results:
-                    results,
+                  results,
 
                   scan_duration:
                     scanDuration,
@@ -1020,36 +1083,12 @@ function App() {
             }
           );
 
-        // ------------------------------------------------------
-        // TOKEN ERROR
-        // ------------------------------------------------------
-
-        if (
-          response.status === 401 ||
-          response.status === 422
-        ) {
-          handleLogout();
-
-          setMessage(
-            "Session expired. Please login again."
-          );
-
-          return;
-        }
-
         const data =
           await response.json();
 
         if (!response.ok) {
-
-          console.error(
-            "Email error:",
-            data
-          );
-
           setMessage(
-            data.details ||
-              data.error ||
+            data.error ||
               "Failed to send email report."
           );
 
@@ -1061,16 +1100,14 @@ function App() {
         );
 
         setRecipientEmail("");
-
       } catch (error) {
-
         console.error(
           "Email error:",
           error
         );
 
         setMessage(
-          "Unable to send email report. Check backend."
+          "Unable to send email report."
         );
       }
     };
@@ -1080,9 +1117,7 @@ function App() {
   // ============================================================
 
   if (!token) {
-
     return (
-
       <div className="app">
 
         <div className="auth-container">
@@ -1092,17 +1127,13 @@ function App() {
           </h1>
 
           <h2>
-
             {authMode === "login"
               ? "Login"
               : "Register"}
-
           </h2>
 
           <form
-            onSubmit={
-              handleAuth
-            }
+            onSubmit={handleAuth}
           >
 
             <input
@@ -1130,11 +1161,9 @@ function App() {
             <button
               type="submit"
             >
-
               {authMode === "login"
                 ? "Login"
                 : "Register"}
-
             </button>
 
           </form>
@@ -1149,25 +1178,20 @@ function App() {
               )
             }
           >
-
             {authMode === "login"
               ? "Create Account"
               : "Back to Login"}
-
           </button>
 
           {message && (
-
             <p className="message">
               {message}
             </p>
-
           )}
 
         </div>
 
       </div>
-
     );
   }
 
@@ -1176,12 +1200,7 @@ function App() {
   // ============================================================
 
   return (
-
     <div className="app">
-
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
 
       <header className="header">
 
@@ -1204,9 +1223,7 @@ function App() {
           </span>
 
           <button
-            onClick={
-              handleLogout
-            }
+            onClick={handleLogout}
           >
             Logout
           </button>
@@ -1239,30 +1256,117 @@ function App() {
                 )
               }
               onKeyDown={(e) => {
-
                 if (
                   e.key === "Enter"
                 ) {
                   scanTarget();
                 }
-
               }}
             />
 
+            <div className="scan-options-container">
+
+              <button
+                type="button"
+                className="scan-options-button"
+                onClick={() =>
+                  setShowScanOptions(
+                    !showScanOptions
+                  )
+                }
+              >
+                Scanning Options
+
+                {selectedOptions.length > 0
+                  ? ` (${selectedOptions.length})`
+                  : ""}
+
+                {" "}
+
+                {showScanOptions
+                  ? "▲"
+                  : "▼"}
+
+              </button>
+
+              {showScanOptions && (
+
+                <div className="scan-options-menu">
+
+                  {scanOptions.map(
+                    (option) => (
+
+                      <label
+                        key={option.id}
+                        className="scan-option-item"
+                      >
+
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedOptions.includes(
+                              option.id
+                            )
+                          }
+                          onChange={() =>
+                            toggleScanOption(
+                              option.id
+                            )
+                          }
+                        />
+
+                        <span>
+                          {option.label}
+                        </span>
+
+                      </label>
+
+                    )
+                  )}
+
+                </div>
+
+              )}
+
+            </div>
+
             <button
-              onClick={
-                scanTarget
-              }
+              onClick={scanTarget}
               disabled={loading}
             >
-
               {loading
                 ? "Scanning..."
                 : "Start Scan"}
-
             </button>
 
           </div>
+
+          {selectedOptions.length > 0 && (
+
+            <div className="selected-options">
+
+              <strong>
+                Selected:
+              </strong>
+
+              {" "}
+
+              {scanOptions
+                .filter(
+                  (option) =>
+                    selectedOptions.includes(
+                      option.id
+                    )
+                )
+                .map(
+                  (option) =>
+                    option.label
+                )
+                .join(", ")}
+
+            </div>
+
+          )}
 
           {message && (
 
@@ -1315,33 +1419,13 @@ function App() {
 
                   <tr>
 
-                    <th>
-                      Port
-                    </th>
-
-                    <th>
-                      State
-                    </th>
-
-                    <th>
-                      Service
-                    </th>
-
-                    <th>
-                      Version
-                    </th>
-
-                    <th>
-                      Risk
-                    </th>
-
-                    <th>
-                      Recommendation
-                    </th>
-
-                    <th>
-                      CVE
-                    </th>
+                    <th>Port</th>
+                    <th>State</th>
+                    <th>Service</th>
+                    <th>Version</th>
+                    <th>Risk</th>
+                    <th>Recommendation</th>
+                    <th>CVE</th>
 
                   </tr>
 
@@ -1350,14 +1434,9 @@ function App() {
                 <tbody>
 
                   {results.map(
-                    (
-                      item,
-                      index
-                    ) => (
+                    (item, index) => (
 
-                      <tr
-                        key={index}
-                      >
+                      <tr key={index}>
 
                         <td>
                           {item.port ?? "-"}
@@ -1375,10 +1454,6 @@ function App() {
                           {item.version ?? "-"}
                         </td>
 
-                        {/* ==================================
-                            RISK BADGE
-                        ================================== */}
-
                         <td>
 
                           <span
@@ -1388,27 +1463,21 @@ function App() {
                                   "unknown"
                               )
                                 .toLowerCase()
-                                .includes(
-                                  "high"
-                                )
+                                .includes("high")
                                 ? "high"
                                 : String(
                                     item.risk ||
                                       ""
                                   )
                                     .toLowerCase()
-                                    .includes(
-                                      "medium"
-                                    )
+                                    .includes("medium")
                                 ? "medium"
                                 : String(
                                     item.risk ||
                                       ""
                                   )
                                     .toLowerCase()
-                                    .includes(
-                                      "low"
-                                    )
+                                    .includes("low")
                                 ? "low"
                                 : "unknown"
                             }`}
@@ -1422,15 +1491,9 @@ function App() {
                         </td>
 
                         <td>
-
                           {item.recommendation ??
                             "-"}
-
                         </td>
-
-                        {/* ==================================
-                            CVE
-                        ================================== */}
 
                         <td>
 
@@ -1517,11 +1580,15 @@ function App() {
               </button>
 
               <button
-                onClick={
-                  downloadPDF
-                }
+                onClick={downloadPDF}
               >
                 Download PDF
+              </button>
+
+              <button
+                onClick={downloadXML}
+              >
+                Download XML Report
               </button>
 
             </div>
@@ -1568,7 +1635,7 @@ function App() {
         )}
 
         {/* ====================================================
-            SUPABASE SCAN HISTORY
+            SCAN HISTORY
         ==================================================== */}
 
         <section className="card">
@@ -1579,8 +1646,7 @@ function App() {
               Scan History
             </h2>
 
-            {history.length >
-              0 && (
+            {history.length > 0 && (
 
               <button
                 onClick={
@@ -1605,10 +1671,7 @@ function App() {
             <div className="history-list">
 
               {history.map(
-                (
-                  item,
-                  index
-                ) => (
+                (item, index) => (
 
                   <div
                     className="history-item"
@@ -1638,10 +1701,12 @@ function App() {
 
                         Duration:{" "}
 
-                        {item.scan_duration ??
-                          "-"}{" "}
+                        {
+                          item.scan_duration ??
+                          "-"
+                        }
 
-                        seconds
+                        {" "}seconds
 
                       </p>
 
@@ -1685,7 +1750,6 @@ function App() {
       </main>
 
     </div>
-
   );
 }
 
