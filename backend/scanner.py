@@ -99,7 +99,7 @@ def scan_target(target):
     # Scan all TCP ports + service/version detection
     scanner.scan(
         target,
-        arguments="-p- -sV -T4"
+        arguments="-p- -sV -T4 -Pn"
     )
 
     results = []
