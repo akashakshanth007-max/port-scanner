@@ -3,7 +3,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:5000";
+const API_URL = "https://port-scanner-1-at12.onrender.com";
 
 function App() {
   // ============================================================
