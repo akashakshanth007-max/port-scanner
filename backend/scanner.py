@@ -150,7 +150,7 @@ def scan_target(target):
 
         scanner.scan(
             target,
-            arguments="-p- -sV -T4 -Pn"
+            arguments="-p- -sT -sV -T4 -Pn"
         )
 
 
