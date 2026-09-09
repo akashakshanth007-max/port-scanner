@@ -37,6 +37,7 @@ def get_risk(port, service):
                 "RDP is open. Restrict access to trusted networks and use strong authentication."
             )
 
+
     # Medium Risk Ports
     if port in [135, 139, 5000, 8080, 8000, 9080]:
 
@@ -64,6 +65,7 @@ def get_risk(port, service):
                 "The gRPC service is open. Review the service and restrict access if it is not required."
             )
 
+
     # Low Risk
     if port == 22 or service == "ssh":
         return (
@@ -76,6 +78,7 @@ def get_risk(port, service):
             "Low",
             "Web service is open. Keep the service updated and restrict access when possible."
         )
+
 
     # Default
     return (
@@ -99,11 +102,13 @@ def scan_target(target):
     print("Target:", target, flush=True)
     print("================================", flush=True)
 
+
     # ========================================================
     # CREATE NMAP SCANNER
     # ========================================================
 
     try:
+
         scanner = nmap.PortScanner()
 
         print(
@@ -121,17 +126,13 @@ def scan_target(target):
 
         raise
 
+
     # ========================================================
     # START NMAP SCAN
     # ========================================================
 
     print("================================", flush=True)
     print("Starting Nmap scan:", target, flush=True)
-
-    # -p-  = Scan all TCP ports
-    # -sV  = Service/version detection
-    # -T4  = Faster timing
-    # -Pn  = Skip host discovery
 
     print(
         "Scan arguments: -p- -sV -T4 -Pn",
@@ -140,17 +141,50 @@ def scan_target(target):
 
     print("================================", flush=True)
 
+
     try:
+
+        # Scan all TCP ports
+        # Detect service/version
+        # Skip host discovery
 
         scanner.scan(
             target,
             arguments="-p- -sV -T4 -Pn"
         )
 
+
+        # ====================================================
+        # NMAP DEBUG OUTPUT
+        # ====================================================
+
         print(
             "Nmap scan command completed.",
             flush=True
         )
+
+        print("================================", flush=True)
+
+        print(
+            "NMAP COMMAND:",
+            scanner.command_line(),
+            flush=True
+        )
+
+        print(
+            "NMAP SCAN INFO:",
+            scanner.scaninfo(),
+            flush=True
+        )
+
+        print(
+            "NMAP RAW OUTPUT:",
+            scanner.get_nmap_last_output(),
+            flush=True
+        )
+
+        print("================================", flush=True)
+
 
     except Exception as error:
 
@@ -162,11 +196,13 @@ def scan_target(target):
 
         raise
 
+
     # ========================================================
     # RESULTS
     # ========================================================
 
     results = []
+
 
     # ========================================================
     # GET HOSTS
@@ -175,9 +211,21 @@ def scan_target(target):
     hosts = scanner.all_hosts()
 
     print("================================", flush=True)
-    print("Hosts found:", hosts, flush=True)
-    print("Total hosts:", len(hosts), flush=True)
+
+    print(
+        "Hosts found:",
+        hosts,
+        flush=True
+    )
+
+    print(
+        "Total hosts:",
+        len(hosts),
+        flush=True
+    )
+
     print("================================", flush=True)
+
 
     # ========================================================
     # PROCESS HOSTS
@@ -190,6 +238,7 @@ def scan_target(target):
             host,
             flush=True
         )
+
 
         # ====================================================
         # HOST STATE
@@ -213,6 +262,7 @@ def scan_target(target):
                 flush=True
             )
 
+
         # ====================================================
         # GET PROTOCOLS
         # ====================================================
@@ -224,6 +274,7 @@ def scan_target(target):
             protocols,
             flush=True
         )
+
 
         # ====================================================
         # PROCESS PROTOCOLS
@@ -237,6 +288,7 @@ def scan_target(target):
                 flush=True
             )
 
+
             ports = scanner[host][protocol].keys()
 
             print(
@@ -245,6 +297,7 @@ def scan_target(target):
                 flush=True
             )
 
+
             # ====================================================
             # PROCESS PORTS
             # ====================================================
@@ -252,6 +305,7 @@ def scan_target(target):
             for port in sorted(ports):
 
                 port_data = scanner[host][protocol][port]
+
 
                 # ====================================================
                 # PORT INFORMATION
@@ -277,6 +331,7 @@ def scan_target(target):
                     ""
                 )
 
+
                 # ====================================================
                 # BUILD DISPLAY VERSION
                 # ====================================================
@@ -299,6 +354,7 @@ def scan_target(target):
 
                     display_version = "-"
 
+
                 # ====================================================
                 # RISK
                 # ====================================================
@@ -307,6 +363,7 @@ def scan_target(target):
                     port,
                     service
                 )
+
 
                 # ====================================================
                 # CVE LOOKUP
@@ -328,6 +385,7 @@ def scan_target(target):
                     )
 
                     cves = []
+
 
                 # ====================================================
                 # CREATE RESULT
@@ -351,10 +409,12 @@ def scan_target(target):
 
                 }
 
+
                 results.append(result)
 
+
                 # ====================================================
-                # DEBUG OUTPUT
+                # LOG PORT RESULT
                 # ====================================================
 
                 print(
@@ -366,12 +426,17 @@ def scan_target(target):
                     flush=True
                 )
 
+
     # ========================================================
     # FINAL RESULT
     # ========================================================
 
     print("================================", flush=True)
-    print("Scan completed.", flush=True)
+
+    print(
+        "Scan completed.",
+        flush=True
+    )
 
     print(
         "Total results:",
@@ -380,5 +445,6 @@ def scan_target(target):
     )
 
     print("================================", flush=True)
+
 
     return results
