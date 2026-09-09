@@ -37,6 +37,7 @@ def get_risk(port, service):
                 "RDP is open. Restrict access to trusted networks and use strong authentication."
             )
 
+
     # Medium Risk Ports
     if port in [135, 139, 5000, 8080, 8000, 9080]:
 
@@ -64,6 +65,7 @@ def get_risk(port, service):
                 "The gRPC service is open. Review the service and restrict access if it is not required."
             )
 
+
     # Low Risk
     if port == 22 or service == "ssh":
         return (
@@ -76,6 +78,7 @@ def get_risk(port, service):
             "Low",
             "Web service is open. Keep the service updated and restrict access when possible."
         )
+
 
     # Default
     return (
@@ -90,37 +93,169 @@ def get_risk(port, service):
 
 def scan_target(target):
 
-    scanner = nmap.PortScanner()
+    # ========================================================
+    # DEBUG LOG
+    # ========================================================
 
-    print("=" * 60)
-    print("Starting Nmap scan:", target)
-    print("=" * 60)
+    print("================================", flush=True)
+    print("SCAN FUNCTION CALLED", flush=True)
+    print("Target:", target, flush=True)
+    print("================================", flush=True)
 
-    # Scan all TCP ports + service/version detection
-    scanner.scan(
-        target,
-        arguments="-p- -sV -T4 -Pn"
-    )
+
+    # ========================================================
+    # CREATE NMAP SCANNER
+    # ========================================================
+
+    try:
+
+        scanner = nmap.PortScanner()
+
+        print(
+            "Nmap PortScanner initialized successfully.",
+            flush=True
+        )
+
+    except Exception as error:
+
+        print(
+            "ERROR INITIALIZING NMAP:",
+            str(error),
+            flush=True
+        )
+
+        raise
+
+
+    # ========================================================
+    # START SCAN
+    # ========================================================
+
+    print("================================", flush=True)
+    print("Starting Nmap scan:", target, flush=True)
+    print("Scan arguments: -p- -sV -T4", flush=True)
+    print("================================", flush=True)
+
+
+    try:
+
+        # Scan all TCP ports + service/version detection
+        scanner.scan(
+            target,
+            arguments="-p- -sV -T4"
+        )
+
+        print(
+            "Nmap scan command completed.",
+            flush=True
+        )
+
+    except Exception as error:
+
+        print(
+            "NMAP SCAN ERROR:",
+            str(error),
+            flush=True
+        )
+
+        raise
+
+
+    # ========================================================
+    # RESULTS LIST
+    # ========================================================
 
     results = []
+
+
+    # ========================================================
+    # DEBUG: HOSTS
+    # ========================================================
+
+    hosts = scanner.all_hosts()
+
+    print("================================", flush=True)
+    print("Hosts found:", hosts, flush=True)
+    print("Total hosts:", len(hosts), flush=True)
+    print("================================", flush=True)
+
 
     # ========================================================
     # PROCESS SCAN RESULTS
     # ========================================================
 
-    for host in scanner.all_hosts():
+    for host in hosts:
 
-        print("Host found:", host)
+        print(
+            "Host found:",
+            host,
+            flush=True
+        )
 
-        for protocol in scanner[host].all_protocols():
 
-            print("Protocol:", protocol)
+        # Host State
+        try:
+
+            host_state = scanner[host].state()
+
+            print(
+                "Host state:",
+                host_state,
+                flush=True
+            )
+
+        except Exception as error:
+
+            print(
+                "Unable to get host state:",
+                str(error),
+                flush=True
+            )
+
+
+        # ====================================================
+        # PROTOCOLS
+        # ====================================================
+
+        protocols = scanner[host].all_protocols()
+
+        print(
+            "Protocols found:",
+            protocols,
+            flush=True
+        )
+
+
+        for protocol in protocols:
+
+            print(
+                "Protocol:",
+                protocol,
+                flush=True
+            )
+
 
             ports = scanner[host][protocol].keys()
+
+            print(
+                "Ports found:",
+                list(ports),
+                flush=True
+            )
+
+
+            # ====================================================
+            # PROCESS PORTS
+            # ====================================================
 
             for port in sorted(ports):
 
                 port_data = scanner[host][protocol][port]
+
+
+                # ====================================================
+                # PORT DATA
+                # ====================================================
 
                 state = port_data.get(
                     "state",
@@ -142,13 +277,16 @@ def scan_target(target):
                     ""
                 )
 
+
                 # ====================================================
                 # BUILD DISPLAY VERSION
                 # ====================================================
 
                 if product and version:
 
-                    display_version = f"{product} {version}"
+                    display_version = (
+                        f"{product} {version}"
+                    )
 
                 elif version:
 
@@ -162,6 +300,7 @@ def scan_target(target):
 
                     display_version = "-"
 
+
                 # ====================================================
                 # RISK
                 # ====================================================
@@ -171,14 +310,28 @@ def scan_target(target):
                     service
                 )
 
+
                 # ====================================================
                 # CVE LOOKUP
                 # ====================================================
 
-                cves = lookup_cves(
-                    service,
-                    display_version
-                )
+                try:
+
+                    cves = lookup_cves(
+                        service,
+                        display_version
+                    )
+
+                except Exception as error:
+
+                    print(
+                        "CVE lookup error:",
+                        str(error),
+                        flush=True
+                    )
+
+                    cves = []
+
 
                 # ====================================================
                 # RESULT
@@ -202,10 +355,12 @@ def scan_target(target):
 
                 }
 
+
                 results.append(result)
 
+
                 # ====================================================
-                # TERMINAL OUTPUT
+                # TERMINAL / RENDER LOG OUTPUT
                 # ====================================================
 
                 print(
@@ -213,16 +368,23 @@ def scan_target(target):
                     f"State: {state} | "
                     f"Service: {service} | "
                     f"Version: {display_version} | "
-                    f"Risk: {risk}"
+                    f"Risk: {risk}",
+                    flush=True
                 )
+
 
     # ========================================================
     # FINAL RESULT
     # ========================================================
 
-    print("=" * 60)
-    print("Scan completed.")
-    print("Total results:", len(results))
-    print("=" * 60)
+    print("================================", flush=True)
+    print("Scan completed.", flush=True)
+    print(
+        "Total results:",
+        len(results),
+        flush=True
+    )
+    print("================================", flush=True)
+
 
     return results
