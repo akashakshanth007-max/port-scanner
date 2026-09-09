@@ -6,7 +6,12 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
-from flask_jwt_extended import JWTManager, jwt_required
+
+from flask_jwt_extended import (
+    JWTManager,
+    jwt_required,
+    get_jwt_identity
+)
 
 from scanner import scan_target
 from auth import auth, bcrypt, init_auth_db
@@ -52,10 +57,6 @@ except ImportError:
         "WARNING: Supabase package is not installed."
     )
 
-    print(
-        "Run: pip install supabase"
-    )
-
 
 # ============================================================
 # FLASK APP
@@ -69,7 +70,12 @@ app = Flask(__name__)
 # ============================================================
 
 CORS(
-    app
+    app,
+    resources={
+        r"/*": {
+            "origins": "*"
+        }
+    }
 )
 
 
@@ -170,55 +176,6 @@ else:
         "WARNING: Supabase is not configured."
     )
 
-    if not SUPABASE_URL:
-        print(
-            "SUPABASE_URL is missing."
-        )
-
-    if not SUPABASE_KEY:
-        print(
-            "SUPABASE_KEY is missing."
-        )
-
-
-# ============================================================
-# DEBUG INFORMATION
-# ============================================================
-
-print("=" * 60)
-
-print(
-    "Environment file:",
-    ENV_FILE
-)
-
-print(
-    "MAIL_USERNAME configured:",
-    bool(MAIL_USERNAME)
-)
-
-print(
-    "MAIL_PASSWORD configured:",
-    bool(MAIL_PASSWORD)
-)
-
-print(
-    "SUPABASE_URL configured:",
-    bool(SUPABASE_URL)
-)
-
-print(
-    "SUPABASE_KEY configured:",
-    bool(SUPABASE_KEY)
-)
-
-print(
-    "SUPABASE connected:",
-    bool(supabase)
-)
-
-print("=" * 60)
-
 
 # ============================================================
 # AUTH BLUEPRINT
@@ -287,6 +244,13 @@ def scan():
 
     try:
 
+        # ----------------------------------------------------
+        # GET CURRENT USER ID
+        # ----------------------------------------------------
+
+        user_id = get_jwt_identity()
+
+
         data = request.get_json(
             silent=True
         )
@@ -300,10 +264,12 @@ def scan():
 
             }), 400
 
+
         target = data.get(
             "target",
             ""
         ).strip()
+
 
         if not target:
 
@@ -314,9 +280,11 @@ def scan():
 
             }), 400
 
+
         print(
-            f"Starting scan for: {target}"
+            f"Starting scan for user {user_id}: {target}"
         )
+
 
         # ----------------------------------------------------
         # START TIMER
@@ -324,13 +292,15 @@ def scan():
 
         start_time = time.time()
 
+
         # ----------------------------------------------------
-        # RUN NMAP SCANNER
+        # RUN SCANNER
         # ----------------------------------------------------
 
         results = scan_target(
             target
         )
+
 
         # ----------------------------------------------------
         # SCAN DURATION
@@ -341,16 +311,9 @@ def scan():
             2
         )
 
+
         print(
             f"Scan completed for: {target}"
-        )
-
-        print(
-            f"Results found: {len(results)}"
-        )
-
-        print(
-            f"Scan duration: {scan_duration} seconds"
         )
 
 
@@ -366,6 +329,9 @@ def scan():
                     "scans"
                 ).insert({
 
+                    "user_id":
+                    int(user_id),
+
                     "target":
                     target,
 
@@ -377,9 +343,11 @@ def scan():
 
                 }).execute()
 
+
                 print(
-                    "Scan saved to Supabase successfully."
+                    f"Scan saved for user: {user_id}"
                 )
+
 
             except Exception as e:
 
@@ -388,10 +356,11 @@ def scan():
                     str(e)
                 )
 
+
         else:
 
             print(
-                "Supabase unavailable. Scan not saved."
+                "Supabase unavailable."
             )
 
 
@@ -408,10 +377,7 @@ def scan():
             results,
 
             "scan_duration":
-            scan_duration,
-
-            "supabase_saved":
-            bool(supabase)
+            scan_duration
 
         }), 200
 
@@ -422,6 +388,7 @@ def scan():
             "SCAN ERROR:",
             str(e)
         )
+
 
         return jsonify({
 
@@ -448,15 +415,15 @@ def history():
     try:
 
         # ----------------------------------------------------
-        # CHECK SUPABASE
+        # GET CURRENT USER ID
         # ----------------------------------------------------
+
+        user_id = get_jwt_identity()
+
 
         if not supabase:
 
             return jsonify({
-
-                "message":
-                "Supabase is not configured.",
 
                 "history":
                 []
@@ -465,7 +432,7 @@ def history():
 
 
         # ----------------------------------------------------
-        # GET HISTORY
+        # GET ONLY CURRENT USER HISTORY
         # ----------------------------------------------------
 
         response = (
@@ -473,6 +440,10 @@ def history():
             supabase
             .table("scans")
             .select("*")
+            .eq(
+                "user_id",
+                int(user_id)
+            )
             .order(
                 "created_at",
                 desc=True
@@ -480,11 +451,6 @@ def history():
             .limit(20)
             .execute()
 
-        )
-
-
-        print(
-            f"History records found: {len(response.data)}"
         )
 
 
@@ -503,6 +469,7 @@ def history():
             str(e)
         )
 
+
         return jsonify({
 
             "error":
@@ -515,7 +482,7 @@ def history():
 
 
 # ============================================================
-# DELETE SINGLE HISTORY RECORD
+# DELETE SINGLE HISTORY
 # ============================================================
 
 @app.route(
@@ -528,8 +495,11 @@ def delete_history(scan_id):
     try:
 
         # ----------------------------------------------------
-        # CHECK SUPABASE
+        # GET CURRENT USER
         # ----------------------------------------------------
+
+        user_id = get_jwt_identity()
+
 
         if not supabase:
 
@@ -542,35 +512,24 @@ def delete_history(scan_id):
 
 
         # ----------------------------------------------------
-        # DELETE RECORD
+        # DELETE ONLY CURRENT USER RECORD
         # ----------------------------------------------------
 
-        response = (
-
-            supabase
-            .table("scans")
-            .delete()
-            .eq(
-                "id",
-                scan_id
-            )
-            .execute()
-
-        )
-
-
-        print(
-            f"Deleted scan history record: {scan_id}"
-        )
+        supabase.table(
+            "scans"
+        ).delete().eq(
+            "id",
+            scan_id
+        ).eq(
+            "user_id",
+            int(user_id)
+        ).execute()
 
 
         return jsonify({
 
             "message":
-            "Scan history deleted successfully.",
-
-            "id":
-            scan_id
+            "Scan history deleted successfully."
 
         }), 200
 
@@ -581,6 +540,7 @@ def delete_history(scan_id):
             "DELETE HISTORY ERROR:",
             str(e)
         )
+
 
         return jsonify({
 
@@ -594,7 +554,7 @@ def delete_history(scan_id):
 
 
 # ============================================================
-# DELETE ALL HISTORY RECORDS
+# DELETE ALL HISTORY
 # ============================================================
 
 @app.route(
@@ -607,8 +567,11 @@ def delete_all_history():
     try:
 
         # ----------------------------------------------------
-        # CHECK SUPABASE
+        # GET CURRENT USER
         # ----------------------------------------------------
+
+        user_id = get_jwt_identity()
+
 
         if not supabase:
 
@@ -621,32 +584,21 @@ def delete_all_history():
 
 
         # ----------------------------------------------------
-        # DELETE ALL RECORDS
+        # DELETE ONLY CURRENT USER HISTORY
         # ----------------------------------------------------
 
-        response = (
-
-            supabase
-            .table("scans")
-            .delete()
-            .neq(
-                "id",
-                0
-            )
-            .execute()
-
-        )
-
-
-        print(
-            "All scan history records deleted."
-        )
+        supabase.table(
+            "scans"
+        ).delete().eq(
+            "user_id",
+            int(user_id)
+        ).execute()
 
 
         return jsonify({
 
             "message":
-            "All scan history deleted successfully."
+            "All your scan history deleted successfully."
 
         }), 200
 
@@ -658,10 +610,11 @@ def delete_all_history():
             str(e)
         )
 
+
         return jsonify({
 
             "error":
-            "Failed to delete all scan history.",
+            "Failed to delete scan history.",
 
             "details":
             str(e)
@@ -686,6 +639,7 @@ def email_report():
             silent=True
         )
 
+
         if not data:
 
             return jsonify({
@@ -701,15 +655,18 @@ def email_report():
             ""
         ).strip()
 
+
         target = data.get(
             "target",
             ""
         ).strip()
 
+
         results = data.get(
             "results",
             []
         )
+
 
         scan_duration = data.get(
             "scan_duration",
@@ -772,7 +729,7 @@ def email_report():
 
 
         # ====================================================
-        # BUILD HTML TABLE
+        # BUILD EMAIL ROWS
         # ====================================================
 
         rows = ""
@@ -810,86 +767,22 @@ def email_report():
                 "-"
             )
 
-            cves = item.get(
-                "cves",
-                []
-            )
-
-
-            cve_text = (
-                "No CVE found"
-            )
-
-
-            if cves:
-
-                cve_items = []
-
-
-                for cve in cves:
-
-                    cve_id = cve.get(
-                        "cve_id",
-                        "-"
-                    )
-
-                    score = cve.get(
-                        "cvss_score"
-                    )
-
-
-                    if score is not None:
-
-                        cve_items.append(
-
-                            f"{cve_id} "
-                            f"(CVSS: {score})"
-
-                        )
-
-                    else:
-
-                        cve_items.append(
-                            cve_id
-                        )
-
-
-                cve_text = "<br>".join(
-                    cve_items
-                )
-
 
             rows += f"""
 
                 <tr>
 
-                    <td>
-                        {port}
-                    </td>
+                    <td>{port}</td>
 
-                    <td>
-                        {state}
-                    </td>
+                    <td>{state}</td>
 
-                    <td>
-                        {service}
-                    </td>
+                    <td>{service}</td>
 
-                    <td>
-                        {version}
-                    </td>
+                    <td>{version}</td>
 
-                    <td>
-                        {risk}
-                    </td>
+                    <td>{risk}</td>
 
-                    <td>
-                        {recommendation}
-                    </td>
-
-                    <td>
-                        {cve_text}
-                    </td>
+                    <td>{recommendation}</td>
 
                 </tr>
 
@@ -902,175 +795,64 @@ def email_report():
 
         html_content = f"""
 
-        <!DOCTYPE html>
-
         <html>
-
-        <head>
-
-            <meta charset="UTF-8">
-
-            <style>
-
-                body {{
-                    font-family: Arial, sans-serif;
-                    background: #f4f6f8;
-                    padding: 25px;
-                    color: #222;
-                }}
-
-                .container {{
-                    max-width: 1100px;
-                    margin: auto;
-                    background: white;
-                    padding: 30px;
-                    border-radius: 12px;
-                }}
-
-                h1 {{
-                    color: #2563eb;
-                }}
-
-                .info {{
-                    margin-bottom: 20px;
-                }}
-
-                table {{
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 20px;
-                }}
-
-                th {{
-                    background: #2563eb;
-                    color: white;
-                    padding: 10px;
-                    text-align: left;
-                }}
-
-                td {{
-                    border: 1px solid #ddd;
-                    padding: 10px;
-                    vertical-align: top;
-                }}
-
-                tr:nth-child(even) {{
-                    background: #f8fafc;
-                }}
-
-                .footer {{
-                    margin-top: 25px;
-                    color: #777;
-                    font-size: 12px;
-                }}
-
-            </style>
-
-        </head>
-
 
         <body>
 
-            <div class="container">
-
-                <h1>
-                    Port Scanner Security Report
-                </h1>
+            <h1>
+                Port Scanner Security Report
+            </h1>
 
 
-                <div class="info">
+            <p>
 
-                    <p>
+                <strong>
+                    Target:
+                </strong>
 
-                        <strong>
-                            Target:
-                        </strong>
+                {target}
 
-                        {target}
-
-                    </p>
+            </p>
 
 
-                    <p>
+            <p>
 
-                        <strong>
-                            Scan Duration:
-                        </strong>
+                <strong>
+                    Scan Duration:
+                </strong>
 
-                        {scan_duration} seconds
+                {scan_duration} seconds
 
-                    </p>
-
-
-                    <p>
-
-                        <strong>
-                            Total Results:
-                        </strong>
-
-                        {len(results)}
-
-                    </p>
-
-                </div>
+            </p>
 
 
-                <table>
+            <table
+                border="1"
+                cellpadding="8"
+            >
 
-                    <thead>
+                <tr>
 
-                        <tr>
+                    <th>Port</th>
 
-                            <th>
-                                Port
-                            </th>
+                    <th>State</th>
 
-                            <th>
-                                State
-                            </th>
+                    <th>Service</th>
 
-                            <th>
-                                Service
-                            </th>
+                    <th>Version</th>
 
-                            <th>
-                                Version
-                            </th>
+                    <th>Risk</th>
 
-                            <th>
-                                Risk
-                            </th>
+                    <th>Recommendation</th>
 
-                            <th>
-                                Recommendation
-                            </th>
-
-                            <th>
-                                CVE
-                            </th>
-
-                        </tr>
-
-                    </thead>
+                </tr>
 
 
-                    <tbody>
-
-                        {rows}
-
-                    </tbody>
-
-                </table>
+                {rows}
 
 
-                <div class="footer">
+            </table>
 
-                    Generated by
-                    Port Scanner Security Tool.
-
-                </div>
-
-            </div>
 
         </body>
 
@@ -1103,11 +885,6 @@ def email_report():
         )
 
 
-        print(
-            f"Email report sent to: {recipient}"
-        )
-
-
         return jsonify({
 
             "message":
@@ -1125,6 +902,7 @@ def email_report():
             "EMAIL ERROR:",
             str(e)
         )
+
 
         return jsonify({
 
@@ -1196,16 +974,10 @@ if __name__ == "__main__":
     )
 
     print(
-        "Backend URL: http://127.0.0.1:5000"
-    )
-
-    print(
-        "Frontend URL: http://127.0.0.1:5173"
-    )
-
-    print(
         "Supabase:",
-        "Connected" if supabase else "Not Connected"
+        "Connected"
+        if supabase
+        else "Not Connected"
     )
 
     print("=" * 60)
