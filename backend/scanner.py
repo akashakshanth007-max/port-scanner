@@ -135,7 +135,7 @@ def scan_target(target):
     print("Starting Nmap scan:", target, flush=True)
 
     print(
-        "Scan arguments: -p- -sV -T4 -Pn",
+        "Scan arguments: -p- -sT -sV -T4 -Pn",
         flush=True
     )
 
