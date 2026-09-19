@@ -250,6 +250,14 @@ def scan():
 
         user_id = get_jwt_identity()
 
+        print(
+            f"Current logged-in user ID: {user_id}"
+        )
+
+
+        # ----------------------------------------------------
+        # GET REQUEST DATA
+        # ----------------------------------------------------
 
         data = request.get_json(
             silent=True
@@ -329,8 +337,10 @@ def scan():
                     "scans"
                 ).insert({
 
+                    # IMPORTANT:
+                    # Supabase scans.user_id is TEXT
                     "user_id":
-                    int(user_id),
+                    str(user_id),
 
                     "target":
                     target,
@@ -345,7 +355,7 @@ def scan():
 
 
                 print(
-                    f"Scan saved for user: {user_id}"
+                    f"Scan saved successfully for user: {user_id}"
                 )
 
 
@@ -442,7 +452,7 @@ def history():
             .select("*")
             .eq(
                 "user_id",
-                int(user_id)
+                str(user_id)
             )
             .order(
                 "created_at",
@@ -522,7 +532,7 @@ def delete_history(scan_id):
             scan_id
         ).eq(
             "user_id",
-            int(user_id)
+            str(user_id)
         ).execute()
 
 
@@ -591,7 +601,7 @@ def delete_all_history():
             "scans"
         ).delete().eq(
             "user_id",
-            int(user_id)
+            str(user_id)
         ).execute()
 
 
