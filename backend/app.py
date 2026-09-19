@@ -1,5 +1,6 @@
 import os
 import time
+import sqlite3
 from datetime import timedelta
 
 from flask import Flask, request, jsonify
@@ -256,6 +257,46 @@ def scan():
 
 
         # ----------------------------------------------------
+        # GET CURRENT USERNAME FROM SQLITE
+        # ----------------------------------------------------
+
+        conn = sqlite3.connect(
+            "scanner.db"
+        )
+
+        conn.row_factory = sqlite3.Row
+
+        user = conn.execute(
+            """
+            SELECT username
+            FROM users
+            WHERE id = ?
+            """,
+            (user_id,)
+        ).fetchone()
+
+        conn.close()
+
+
+        if not user:
+
+            return jsonify({
+
+                "error":
+                "Logged-in user not found."
+
+            }), 404
+
+
+        username = user["username"]
+
+
+        print(
+            f"Current logged-in username: {username}"
+        )
+
+
+        # ----------------------------------------------------
         # GET REQUEST DATA
         # ----------------------------------------------------
 
@@ -290,7 +331,7 @@ def scan():
 
 
         print(
-            f"Starting scan for user {user_id}: {target}"
+            f"Starting scan for user {user_id} ({username}): {target}"
         )
 
 
@@ -337,10 +378,13 @@ def scan():
                     "scans"
                 ).insert({
 
-                    # IMPORTANT:
-                    # Supabase scans.user_id is TEXT
+                    # Actual logged-in user ID
                     "user_id":
                     str(user_id),
+
+                    # Actual logged-in username
+                    "username":
+                    username,
 
                     "target":
                     target,
@@ -355,7 +399,8 @@ def scan():
 
 
                 print(
-                    f"Scan saved successfully for user: {user_id}"
+                    f"Scan saved successfully for user "
+                    f"{user_id} ({username})"
                 )
 
 
