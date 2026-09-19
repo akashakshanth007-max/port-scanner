@@ -1,3 +1,4 @@
+import re
 import nmap
 from cve_lookup import lookup_cves
 
@@ -37,7 +38,6 @@ def get_risk(port, service):
                 "RDP is open. Restrict access to trusted networks and use strong authentication."
             )
 
-
     # Medium Risk Ports
     if port in [135, 139, 5000, 8080, 8000, 9080]:
 
@@ -65,7 +65,6 @@ def get_risk(port, service):
                 "The gRPC service is open. Review the service and restrict access if it is not required."
             )
 
-
     # Low Risk
     if port == 22 or service == "ssh":
         return (
@@ -79,7 +78,6 @@ def get_risk(port, service):
             "Web service is open. Keep the service updated and restrict access when possible."
         )
 
-
     # Default
     return (
         "Low",
@@ -88,19 +86,138 @@ def get_risk(port, service):
 
 
 # ============================================================
+# PORT RANGE VALIDATION
+# ============================================================
+
+def validate_port_range(port_range):
+
+    # Full scan
+    if port_range in [None, "", "full", "all", "1-65535"]:
+        return "-"
+
+    # Must be something like:
+    # 1-100
+    # 20-80
+    # 500-1000
+
+    pattern = r"^(\d{1,5})-(\d{1,5})$"
+
+    match = re.match(
+        pattern,
+        str(port_range).strip()
+    )
+
+    if not match:
+        raise ValueError(
+            "Invalid port range. Use format like 1-100."
+        )
+
+    start_port = int(match.group(1))
+    end_port = int(match.group(2))
+
+    # Valid Nmap port range
+    if start_port < 1 or start_port > 65535:
+        raise ValueError(
+            "Start port must be between 1 and 65535."
+        )
+
+    if end_port < 1 or end_port > 65535:
+        raise ValueError(
+            "End port must be between 1 and 65535."
+        )
+
+    if start_port > end_port:
+        raise ValueError(
+            "Start port cannot be greater than end port."
+        )
+
+    return f"{start_port}-{end_port}"
+
+
+# ============================================================
 # SCAN TARGET
 # ============================================================
 
-def scan_target(target):
+def scan_target(
+    target,
+    port_range="1-100"
+):
 
     # ========================================================
     # DEBUG LOG
     # ========================================================
 
-    print("================================", flush=True)
-    print("SCAN FUNCTION CALLED", flush=True)
-    print("Target:", target, flush=True)
-    print("================================", flush=True)
+    print(
+        "================================",
+        flush=True
+    )
+
+    print(
+        "SCAN FUNCTION CALLED",
+        flush=True
+    )
+
+    print(
+        "Target:",
+        target,
+        flush=True
+    )
+
+    print(
+        "Requested Port Range:",
+        port_range,
+        flush=True
+    )
+
+    print(
+        "================================",
+        flush=True
+    )
+
+
+    # ========================================================
+    # VALIDATE PORT RANGE
+    # ========================================================
+
+    try:
+
+        validated_range = validate_port_range(
+            port_range
+        )
+
+    except ValueError as error:
+
+        print(
+            "PORT RANGE ERROR:",
+            str(error),
+            flush=True
+        )
+
+        raise
+
+
+    # ========================================================
+    # BUILD NMAP PORT ARGUMENT
+    # ========================================================
+
+    if validated_range == "-":
+
+        port_argument = "-p-"
+
+        display_range = "1-65535 (Full Scan)"
+
+    else:
+
+        port_argument = f"-p {validated_range}"
+
+        display_range = validated_range
+
+
+    print(
+        "Actual Port Range:",
+        display_range,
+        flush=True
+    )
 
 
     # ========================================================
@@ -131,26 +248,46 @@ def scan_target(target):
     # START NMAP SCAN
     # ========================================================
 
-    print("================================", flush=True)
-    print("Starting Nmap scan:", target, flush=True)
-
     print(
-        "Scan arguments: -p- -sT -sV -T4 -Pn",
+        "================================",
         flush=True
     )
 
-    print("================================", flush=True)
+    print(
+        "Starting Nmap scan:",
+        target,
+        flush=True
+    )
+
+    print(
+        "Port Range:",
+        display_range,
+        flush=True
+    )
+
+    print(
+        "Scan arguments:",
+        f"{port_argument} -sV -T4 -Pn",
+        flush=True
+    )
+
+    print(
+        "================================",
+        flush=True
+    )
 
 
     try:
 
-        # Scan all TCP ports
+        # ----------------------------------------------------
+        # Scan selected ports
         # Detect service/version
         # Skip host discovery
+        # ----------------------------------------------------
 
         scanner.scan(
             target,
-            arguments="-p- -sT -sV -T4 -Pn"
+            arguments=f"{port_argument} -sV -T4 -Pn"
         )
 
 
@@ -163,7 +300,10 @@ def scan_target(target):
             flush=True
         )
 
-        print("================================", flush=True)
+        print(
+            "================================",
+            flush=True
+        )
 
         print(
             "NMAP COMMAND:",
@@ -183,7 +323,10 @@ def scan_target(target):
             flush=True
         )
 
-        print("================================", flush=True)
+        print(
+            "================================",
+            flush=True
+        )
 
 
     except Exception as error:
@@ -210,7 +353,10 @@ def scan_target(target):
 
     hosts = scanner.all_hosts()
 
-    print("================================", flush=True)
+    print(
+        "================================",
+        flush=True
+    )
 
     print(
         "Hosts found:",
@@ -224,7 +370,10 @@ def scan_target(target):
         flush=True
     )
 
-    print("================================", flush=True)
+    print(
+        "================================",
+        flush=True
+    )
 
 
     # ========================================================
@@ -298,18 +447,18 @@ def scan_target(target):
             )
 
 
-            # ====================================================
+            # =================================================
             # PROCESS PORTS
-            # ====================================================
+            # =================================================
 
             for port in sorted(ports):
 
                 port_data = scanner[host][protocol][port]
 
 
-                # ====================================================
+                # =================================================
                 # PORT INFORMATION
-                # ====================================================
+                # =================================================
 
                 state = port_data.get(
                     "state",
@@ -332,9 +481,9 @@ def scan_target(target):
                 )
 
 
-                # ====================================================
+                # =================================================
                 # BUILD DISPLAY VERSION
-                # ====================================================
+                # =================================================
 
                 if product and version:
 
@@ -355,9 +504,9 @@ def scan_target(target):
                     display_version = "-"
 
 
-                # ====================================================
+                # =================================================
                 # RISK
-                # ====================================================
+                # =================================================
 
                 risk, recommendation = get_risk(
                     port,
@@ -365,9 +514,9 @@ def scan_target(target):
                 )
 
 
-                # ====================================================
+                # =================================================
                 # CVE LOOKUP
-                # ====================================================
+                # =================================================
 
                 try:
 
@@ -387,9 +536,9 @@ def scan_target(target):
                     cves = []
 
 
-                # ====================================================
+                # =================================================
                 # CREATE RESULT
-                # ====================================================
+                # =================================================
 
                 result = {
 
@@ -410,12 +559,14 @@ def scan_target(target):
                 }
 
 
-                results.append(result)
+                results.append(
+                    result
+                )
 
 
-                # ====================================================
+                # =================================================
                 # LOG PORT RESULT
-                # ====================================================
+                # =================================================
 
                 print(
                     f"Port: {port} | "
@@ -431,10 +582,19 @@ def scan_target(target):
     # FINAL RESULT
     # ========================================================
 
-    print("================================", flush=True)
+    print(
+        "================================",
+        flush=True
+    )
 
     print(
         "Scan completed.",
+        flush=True
+    )
+
+    print(
+        "Port Range:",
+        display_range,
         flush=True
     )
 
@@ -444,7 +604,10 @@ def scan_target(target):
         flush=True
     )
 
-    print("================================", flush=True)
+    print(
+        "================================",
+        flush=True
+    )
 
 
     return results
