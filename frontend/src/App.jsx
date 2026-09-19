@@ -3,7 +3,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import "./App.css";
 
-const API_URL = "https://port-scanner-1-atiz.onrender.com";
+const API_URL = "http://127.0.0.1:5000";
 
 function App() {
   // ============================================================
@@ -34,6 +34,10 @@ function App() {
   // ============================================================
 
   const [target, setTarget] = useState("");
+
+  // NEW: PORT RANGE
+  const [portRange, setPortRange] = useState("1-100");
+
   const [results, setResults] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -90,6 +94,38 @@ function App() {
   ];
 
   // ============================================================
+  // PORT RANGE OPTIONS
+  // ============================================================
+
+  const portRangeOptions = [
+    {
+      value: "1-100",
+      label: "1 – 100",
+      description: "Quick scan"
+    },
+    {
+      value: "1-1000",
+      label: "1 – 1,000",
+      description: "Common ports"
+    },
+    {
+      value: "1-5000",
+      label: "1 – 5,000",
+      description: "Extended scan"
+    },
+    {
+      value: "1-10000",
+      label: "1 – 10,000",
+      description: "Deep scan"
+    },
+    {
+      value: "1-65535",
+      label: "1 – 65,535",
+      description: "Full port scan"
+    }
+  ];
+
+  // ============================================================
   // EMAIL
   // ============================================================
 
@@ -113,7 +149,10 @@ function App() {
   const getRiskClass = (risk) => {
     const value = String(risk || "unknown").toLowerCase();
 
-    if (value.includes("high") || value.includes("critical")) {
+    if (
+      value.includes("high") ||
+      value.includes("critical")
+    ) {
       return "high";
     }
 
@@ -135,19 +174,28 @@ function App() {
   const highRiskCount = results.filter((item) => {
     const risk = String(item.risk || "").toLowerCase();
 
-    return risk.includes("high") || risk.includes("critical");
+    return (
+      risk.includes("high") ||
+      risk.includes("critical")
+    );
   }).length;
 
   const mediumRiskCount = results.filter((item) =>
-    String(item.risk || "").toLowerCase().includes("medium")
+    String(item.risk || "")
+      .toLowerCase()
+      .includes("medium")
   ).length;
 
   const lowRiskCount = results.filter((item) =>
-    String(item.risk || "").toLowerCase().includes("low")
+    String(item.risk || "")
+      .toLowerCase()
+      .includes("low")
   ).length;
 
   const openPortsCount = results.filter((item) =>
-    String(item.state || "").toLowerCase().includes("open")
+    String(item.state || "")
+      .toLowerCase()
+      .includes("open")
   ).length;
 
   // ============================================================
@@ -206,14 +254,18 @@ function App() {
 
       if (!response.ok) {
         setMessage(
-          data.error || "Failed to load scan history."
+          data.error ||
+          "Failed to load scan history."
         );
         return;
       }
 
       setHistory(data.history || []);
     } catch (error) {
-      console.error("History error:", error);
+      console.error(
+        "History error:",
+        error
+      );
     }
   };
 
@@ -252,7 +304,8 @@ function App() {
 
       if (!response.ok) {
         setMessage(
-          data.error || "Authentication failed."
+          data.error ||
+          "Authentication failed."
         );
         return;
       }
@@ -310,6 +363,9 @@ function App() {
     setHistory([]);
     setScanDuration("");
 
+    // RESET PORT RANGE
+    setPortRange("1-100");
+
     setRecipientEmail("");
     setSelectedOptions(["tcp"]);
 
@@ -334,6 +390,13 @@ function App() {
     if (selectedOptions.length === 0) {
       setMessage(
         "Please select at least one scan option."
+      );
+      return;
+    }
+
+    if (!portRange) {
+      setMessage(
+        "Please select a port range."
       );
       return;
     }
@@ -367,8 +430,14 @@ function App() {
           },
 
           body: JSON.stringify({
+
             target: target.trim(),
-            scan_options: selectedOptions
+
+            scan_options: selectedOptions,
+
+            // NEW
+            port_range: portRange
+
           })
         }
       );
@@ -398,7 +467,8 @@ function App() {
         return;
       }
 
-      const scanResults = data.results || [];
+      const scanResults =
+        data.results || [];
 
       setResults(scanResults);
 
@@ -431,11 +501,18 @@ function App() {
   const loadHistoryItem = (item) => {
     setTarget(item.target || "");
 
-    let savedResults = item.results || [];
+    // Load saved port range if available
+    setPortRange(
+      item.port_range || "1-100"
+    );
+
+    let savedResults =
+      item.results || [];
 
     if (typeof savedResults === "string") {
       try {
-        savedResults = JSON.parse(savedResults);
+        savedResults =
+          JSON.parse(savedResults);
       } catch {
         savedResults = [];
       }
@@ -449,7 +526,9 @@ function App() {
 
     setActivePage("results");
 
-    setMessage("Previous scan loaded.");
+    setMessage(
+      "Previous scan loaded."
+    );
   };
 
   // ============================================================
@@ -457,28 +536,32 @@ function App() {
   // ============================================================
 
   const deleteHistoryItem = async (item) => {
-    const confirmDelete = window.confirm(
-      "Delete this scan history?"
-    );
+    const confirmDelete =
+      window.confirm(
+        "Delete this scan history?"
+      );
 
     if (!confirmDelete) return;
 
     try {
-      const currentToken = getToken();
+      const currentToken =
+        getToken();
 
-      const response = await fetch(
-        `${API_URL}/history/${item.id}`,
-        {
-          method: "DELETE",
+      const response =
+        await fetch(
+          `${API_URL}/history/${item.id}`,
+          {
+            method: "DELETE",
 
-          headers: {
-            Authorization:
-              `Bearer ${currentToken}`
+            headers: {
+              Authorization:
+                `Bearer ${currentToken}`
+            }
           }
-        }
-      );
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         setMessage(
@@ -507,28 +590,32 @@ function App() {
   // ============================================================
 
   const clearAllHistory = async () => {
-    const confirmDelete = window.confirm(
-      "Delete all scan history?"
-    );
+    const confirmDelete =
+      window.confirm(
+        "Delete all scan history?"
+      );
 
     if (!confirmDelete) return;
 
     try {
-      const currentToken = getToken();
+      const currentToken =
+        getToken();
 
-      const response = await fetch(
-        `${API_URL}/history`,
-        {
-          method: "DELETE",
+      const response =
+        await fetch(
+          `${API_URL}/history`,
+          {
+            method: "DELETE",
 
-          headers: {
-            Authorization:
-              `Bearer ${currentToken}`
+            headers: {
+              Authorization:
+                `Bearer ${currentToken}`
+            }
           }
-        }
-      );
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         setMessage(
@@ -561,10 +648,11 @@ function App() {
     filename,
     type
   ) => {
-    const blob = new Blob(
-      [content],
-      { type }
-    );
+    const blob =
+      new Blob(
+        [content],
+        { type }
+      );
 
     const url =
       URL.createObjectURL(blob);
@@ -573,13 +661,19 @@ function App() {
       document.createElement("a");
 
     link.href = url;
-    link.download = filename;
 
-    document.body.appendChild(link);
+    link.download =
+      filename;
+
+    document.body.appendChild(
+      link
+    );
 
     link.click();
 
-    document.body.removeChild(link);
+    document.body.removeChild(
+      link
+    );
 
     URL.revokeObjectURL(url);
   };
@@ -590,13 +684,16 @@ function App() {
 
   const generateHTMLReport = () => {
     if (!results.length) {
-      setMessage("Please perform a scan first.");
+      setMessage(
+        "Please perform a scan first."
+      );
       return;
     }
 
-    const rows = results
-      .map(
-        (item) => `
+    const rows =
+      results
+        .map(
+          (item) => `
         <tr>
           <td>${item.port ?? "-"}</td>
           <td>${item.state ?? "-"}</td>
@@ -606,8 +703,8 @@ function App() {
           <td>${item.recommendation ?? "-"}</td>
         </tr>
       `
-      )
-      .join("");
+        )
+        .join("");
 
     const html = `
 <!DOCTYPE html>
@@ -616,7 +713,9 @@ function App() {
 
 <head>
 
-<title>Port Scanner Security Report</title>
+<title>
+Port Scanner Security Report
+</title>
 
 <style>
 
@@ -661,9 +760,19 @@ th, td {
 
 <div class="container">
 
-<h1>Port Scanner Security Report</h1>
+<h1>
+Port Scanner Security Report
+</h1>
 
-<p><strong>Target:</strong> ${target}</p>
+<p>
+<strong>Target:</strong>
+${target}
+</p>
+
+<p>
+<strong>Port Range:</strong>
+${portRange}
+</p>
 
 <p>
 <strong>Scan Duration:</strong>
@@ -675,12 +784,14 @@ ${scanDuration || "-"} seconds
 <thead>
 
 <tr>
+
 <th>Port</th>
 <th>State</th>
 <th>Service</th>
 <th>Version</th>
 <th>Risk</th>
 <th>Recommendation</th>
+
 </tr>
 
 </thead>
@@ -717,11 +828,14 @@ ${rows}
 
   const downloadPDF = () => {
     if (!results.length) {
-      setMessage("Please perform a scan first.");
+      setMessage(
+        "Please perform a scan first."
+      );
       return;
     }
 
-    const doc = new jsPDF();
+    const doc =
+      new jsPDF();
 
     doc.setFontSize(20);
 
@@ -740,26 +854,33 @@ ${rows}
     );
 
     doc.text(
-      `Scan Duration: ${
-        scanDuration || "-"
-      } seconds`,
+      `Port Range: ${portRange}`,
       14,
       40
     );
 
-    const tableData = results.map(
-      (item) => [
-        item.port ?? "-",
-        item.state ?? "-",
-        item.service ?? "-",
-        item.version ?? "-",
-        item.risk ?? "-",
-        item.recommendation ?? "-"
-      ]
+    doc.text(
+      `Scan Duration: ${
+        scanDuration || "-"
+      } seconds`,
+      14,
+      48
     );
 
+    const tableData =
+      results.map(
+        (item) => [
+          item.port ?? "-",
+          item.state ?? "-",
+          item.service ?? "-",
+          item.version ?? "-",
+          item.risk ?? "-",
+          item.recommendation ?? "-"
+        ]
+      );
+
     autoTable(doc, {
-      startY: 50,
+      startY: 58,
 
       head: [[
         "Port",
@@ -792,15 +913,24 @@ ${rows}
 
   const downloadXML = () => {
     if (!results.length) {
-      setMessage("Please perform a scan first.");
+      setMessage(
+        "Please perform a scan first."
+      );
       return;
     }
 
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+    let xml =
+      `<?xml version="1.0" encoding="UTF-8"?>
 
 <portScannerReport>
 
-  <target>${target}</target>
+  <target>
+    ${target}
+  </target>
+
+  <portRange>
+    ${portRange}
+  </portRange>
 
   <scanDuration>
     ${scanDuration}
@@ -808,8 +938,9 @@ ${rows}
 
   <results>`;
 
-    results.forEach((item) => {
-      xml += `
+    results.forEach(
+      (item) => {
+        xml += `
 
     <port>
 
@@ -834,7 +965,8 @@ ${rows}
       </risk>
 
     </port>`;
-    });
+      }
+    );
 
     xml += `
 
@@ -857,71 +989,78 @@ ${rows}
   // EMAIL REPORT
   // ============================================================
 
-  const sendEmailReport = async () => {
-    if (!results.length) {
-      setMessage(
-        "Please perform a scan first."
-      );
-
-      return;
-    }
-
-    if (!recipientEmail.trim()) {
-      setMessage(
-        "Please enter a recipient email."
-      );
-
-      return;
-    }
-
-    setMessage("Sending email report...");
-
-    try {
-      const response = await fetch(
-        `${API_URL}/email-report`,
-        {
-          method: "POST",
-
-          headers: authHeaders(),
-
-          body: JSON.stringify({
-            recipient:
-              recipientEmail.trim(),
-
-            target,
-
-            results,
-
-            scan_duration:
-              scanDuration
-          })
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
+  const sendEmailReport =
+    async () => {
+      if (!results.length) {
         setMessage(
-          data.error ||
-          "Failed to send email report."
+          "Please perform a scan first."
+        );
+
+        return;
+      }
+
+      if (!recipientEmail.trim()) {
+        setMessage(
+          "Please enter a recipient email."
         );
 
         return;
       }
 
       setMessage(
-        `Report sent to ${recipientEmail}`
+        "Sending email report..."
       );
 
-      setRecipientEmail("");
-    } catch (error) {
-      console.error(error);
+      try {
+        const response =
+          await fetch(
+            `${API_URL}/email-report`,
+            {
+              method: "POST",
 
-      setMessage(
-        "Unable to send email report."
-      );
-    }
-  };
+              headers:
+                authHeaders(),
+
+              body:
+                JSON.stringify({
+                  recipient:
+                    recipientEmail.trim(),
+
+                  target,
+
+                  results,
+
+                  scan_duration:
+                    scanDuration
+                })
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          setMessage(
+            data.error ||
+            "Failed to send email report."
+          );
+
+          return;
+        }
+
+        setMessage(
+          `Report sent to ${recipientEmail}`
+        );
+
+        setRecipientEmail("");
+      } catch (error) {
+        console.error(error);
+
+        setMessage(
+          "Unable to send email report."
+        );
+      }
+    };
 
   // ============================================================
   // LOGIN PAGE
@@ -932,12 +1071,14 @@ ${rows}
       <div className="auth-page">
 
         <div className="space-background">
+
           <div className="star star-1"></div>
           <div className="star star-2"></div>
           <div className="star star-3"></div>
           <div className="star star-4"></div>
 
           <div className="auth-orbit"></div>
+
         </div>
 
         <div className="auth-wrapper">
@@ -950,7 +1091,9 @@ ${rows}
 
             <h1>
               Network
-              <span> Intelligence</span>
+              <span>
+                Intelligence
+              </span>
             </h1>
 
             <p>
@@ -988,6 +1131,7 @@ ${rows}
               </div>
 
               <div>
+
                 <h2>
                   {
                     authMode === "login"
@@ -1003,6 +1147,7 @@ ${rows}
                       : "Create your security workspace"
                   }
                 </p>
+
               </div>
 
             </div>
@@ -1020,7 +1165,9 @@ ${rows}
                   placeholder="Enter your username"
                   value={username}
                   onChange={(e) =>
-                    setUsername(e.target.value)
+                    setUsername(
+                      e.target.value
+                    )
                   }
                   required
                 />
@@ -1044,7 +1191,9 @@ ${rows}
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) =>
-                      setPassword(e.target.value)
+                      setPassword(
+                        e.target.value
+                      )
                     }
                     required
                   />
@@ -1073,26 +1222,35 @@ ${rows}
                 className="auth-submit"
                 type="submit"
               >
+
                 {
                   authMode === "login"
                     ? "Access Dashboard"
                     : "Create Account"
                 }
 
-                <span>→</span>
+                <span>
+                  →
+                </span>
+
               </button>
 
             </form>
 
             <div className="auth-divider">
+
               <span></span>
+
               OR
+
               <span></span>
+
             </div>
 
             <button
               className="auth-switch"
               onClick={() => {
+
                 setAuthMode(
                   authMode === "login"
                     ? "register"
@@ -1100,6 +1258,7 @@ ${rows}
                 );
 
                 setMessage("");
+
               }}
             >
               {
@@ -1135,12 +1294,15 @@ ${rows}
       {/* BACKGROUND */}
 
       <div className="app-background">
+
         <div className="grid-overlay"></div>
 
         <div className="orb orb-one"></div>
+
         <div className="orb orb-two"></div>
 
         <div className="background-stars"></div>
+
       </div>
 
       {/* ======================================================
@@ -1156,8 +1318,15 @@ ${rows}
           </div>
 
           <div className="brand-text">
-            <h2>PORTSEC</h2>
-            <p>NETWORK INTELLIGENCE</p>
+
+            <h2>
+              PORTSEC
+            </h2>
+
+            <p>
+              NETWORK INTELLIGENCE
+            </p>
+
           </div>
 
         </div>
@@ -1175,9 +1344,12 @@ ${rows}
                 : "nav-item"
             }
             onClick={() =>
-              setActivePage("dashboard")
+              setActivePage(
+                "dashboard"
+              )
             }
           >
+
             <span className="nav-icon">
               ◫
             </span>
@@ -1198,6 +1370,7 @@ ${rows}
               setActivePage("scan")
             }
           >
+
             <span className="nav-icon">
               ◎
             </span>
@@ -1218,6 +1391,7 @@ ${rows}
               setActivePage("results")
             }
           >
+
             <span className="nav-icon">
               ◉
             </span>
@@ -1246,6 +1420,7 @@ ${rows}
               setActivePage("history")
             }
           >
+
             <span className="nav-icon">
               ◷
             </span>
@@ -1277,6 +1452,7 @@ ${rows}
             <span className="system-dot"></span>
 
             <div>
+
               <strong>
                 Operational
               </strong>
@@ -1284,6 +1460,7 @@ ${rows}
               <p>
                 Scanner Engine Ready
               </p>
+
             </div>
 
           </div>
@@ -1295,14 +1472,18 @@ ${rows}
           <div className="user-profile">
 
             <div className="user-avatar">
+
               {
                 loggedInUser
                   ?.charAt(0)
-                  ?.toUpperCase() || "U"
+                  ?.toUpperCase() ||
+                "U"
               }
+
             </div>
 
             <div className="user-details">
+
               <strong>
                 {loggedInUser}
               </strong>
@@ -1310,16 +1491,24 @@ ${rows}
               <span>
                 Security Analyst
               </span>
+
             </div>
 
           </div>
 
           <button
             className="logout-button"
-            onClick={handleLogout}
+            onClick={
+              handleLogout
+            }
           >
-            <span>↪</span>
+
+            <span>
+              ↪
+            </span>
+
             Logout
+
           </button>
 
         </div>
@@ -1339,23 +1528,37 @@ ${rows}
           <div>
 
             <div className="breadcrumb">
+
               PORTSEC
-              <span>/</span>
+
+              <span>
+                /
+              </span>
 
               {
                 activePage.toUpperCase()
               }
+
             </div>
 
             <h1>
 
               {
-                activePage === "dashboard"
+                activePage ===
+                "dashboard"
+
                   ? "Security Overview"
-                  : activePage === "scan"
+
+                  : activePage ===
+                    "scan"
+
                   ? "Network Scanner"
-                  : activePage === "results"
+
+                  : activePage ===
+                    "results"
+
                   ? "Scan Intelligence"
+
                   : "Scan Archive"
               }
 
@@ -1366,12 +1569,17 @@ ${rows}
           <div className="topbar-right">
 
             <div className="online-status">
+
               <span></span>
+
               SYSTEM ONLINE
+
             </div>
 
             <div className="topbar-user">
+
               {loggedInUser}
+
             </div>
 
           </div>
@@ -1383,7 +1591,11 @@ ${rows}
         {
           message && (
             <div className="global-message">
-              <span>●</span>
+
+              <span>
+                ●
+              </span>
+
               {message}
 
               <button
@@ -1393,6 +1605,7 @@ ${rows}
               >
                 ×
               </button>
+
             </div>
           )
         }
@@ -1402,45 +1615,59 @@ ${rows}
         ==================================================== */}
 
         {
-          activePage === "dashboard" && (
+          activePage ===
+          "dashboard" && (
 
             <div className="page-content page-enter">
-
-              {/* HERO */}
 
               <section className="dashboard-hero">
 
                 <div className="hero-content">
 
                   <div className="hero-label">
+
                     <span></span>
+
                     SECURITY COMMAND CENTER
+
                   </div>
 
                   <h2>
+
                     Monitor your
+
                     <br />
 
                     <span>
                       network surface.
                     </span>
+
                   </h2>
 
                   <p>
+
                     Perform reconnaissance,
                     identify exposed services
                     and analyze potential
                     security risks.
+
                   </p>
 
                   <button
                     className="hero-button"
                     onClick={() =>
-                      setActivePage("scan")
+                      setActivePage(
+                        "scan"
+                      )
                     }
                   >
-                    <span>◎</span>
+
+                    <span>
+                      ◎
+                    </span>
+
                     Start New Scan
+
                   </button>
 
                 </div>
@@ -1450,7 +1677,9 @@ ${rows}
                   <div className="radar">
 
                     <div className="radar-ring ring-1"></div>
+
                     <div className="radar-ring ring-2"></div>
+
                     <div className="radar-ring ring-3"></div>
 
                     <div className="radar-line"></div>
@@ -1458,7 +1687,9 @@ ${rows}
                     <div className="radar-center"></div>
 
                     <div className="radar-point point-1"></div>
+
                     <div className="radar-point point-2"></div>
+
                     <div className="radar-point point-3"></div>
 
                   </div>
@@ -1466,8 +1697,6 @@ ${rows}
                 </div>
 
               </section>
-
-              {/* STATS */}
 
               <section className="stats-grid">
 
@@ -1490,11 +1719,13 @@ ${rows}
                   </h2>
 
                   <p>
+
                     <span className="positive">
                       ↑
                     </span>
 
                     Scan records available
+
                   </p>
 
                 </div>
@@ -1562,7 +1793,9 @@ ${rows}
                   </div>
 
                   <h2 className="target-value">
+
                     {target || "—"}
+
                   </h2>
 
                   <p>
@@ -1572,8 +1805,6 @@ ${rows}
                 </div>
 
               </section>
-
-              {/* BOTTOM GRID */}
 
               <section className="dashboard-grid">
 
@@ -1596,7 +1827,9 @@ ${rows}
                     <button
                       className="text-button"
                       onClick={() =>
-                        setActivePage("history")
+                        setActivePage(
+                          "history"
+                        )
                       }
                     >
                       View All →
@@ -1634,7 +1867,10 @@ ${rows}
 
                           {
                             history
-                              .slice(0, 5)
+                              .slice(
+                                0,
+                                5
+                              )
                               .map(
                                 (
                                   item,
@@ -1663,11 +1899,9 @@ ${rows}
 
                                         {
                                           item.created_at
-
                                             ? new Date(
                                                 item.created_at
                                               ).toLocaleString()
-
                                             : "Unknown date"
                                         }
 
@@ -1736,6 +1970,7 @@ ${rows}
                   <div className="risk-legend">
 
                     <div>
+
                       <span className="legend-dot high"></span>
 
                       High
@@ -1743,9 +1978,11 @@ ${rows}
                       <strong>
                         {highRiskCount}
                       </strong>
+
                     </div>
 
                     <div>
+
                       <span className="legend-dot medium"></span>
 
                       Medium
@@ -1753,9 +1990,11 @@ ${rows}
                       <strong>
                         {mediumRiskCount}
                       </strong>
+
                     </div>
 
                     <div>
+
                       <span className="legend-dot low"></span>
 
                       Low
@@ -1763,6 +2002,7 @@ ${rows}
                       <strong>
                         {lowRiskCount}
                       </strong>
+
                     </div>
 
                   </div>
@@ -1772,7 +2012,6 @@ ${rows}
               </section>
 
             </div>
-
           )
         }
 
@@ -1781,7 +2020,8 @@ ${rows}
         ==================================================== */}
 
         {
-          activePage === "scan" && (
+          activePage ===
+          "scan" && (
 
             <div className="page-content page-enter">
 
@@ -1807,8 +2047,11 @@ ${rows}
                   </div>
 
                   <div className="scanner-status">
+
                     <span></span>
+
                     ENGINE READY
+
                   </div>
 
                 </div>
@@ -1830,12 +2073,19 @@ ${rows}
                       placeholder="example.com or 192.168.1.1"
                       value={target}
                       onChange={(e) =>
-                        setTarget(e.target.value)
+                        setTarget(
+                          e.target.value
+                        )
                       }
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
+
+                        if (
+                          e.key ===
+                          "Enter"
+                        ) {
                           scanTarget();
                         }
+
                       }}
                     />
 
@@ -1847,7 +2097,91 @@ ${rows}
 
                 </div>
 
-                {/* SCAN OPTIONS */}
+                {/* =================================================
+                    PORT RANGE
+                ================================================= */}
+
+                <div className="port-range-section">
+
+                  <div className="scan-config-header">
+
+                    <div>
+
+                      <label>
+                        PORT RANGE
+                      </label>
+
+                      <p>
+                        Choose which TCP ports should
+                        be scanned.
+                      </p>
+
+                    </div>
+
+                    <div className="selected-port-range">
+
+                      {portRange}
+
+                    </div>
+
+                  </div>
+
+                  <div className="port-range-grid">
+
+                    {
+                      portRangeOptions.map(
+                        (option) => (
+
+                          <button
+                            type="button"
+                            key={
+                              option.value
+                            }
+                            className={
+                              portRange ===
+                              option.value
+                                ? "port-range-card selected"
+                                : "port-range-card"
+                            }
+                            onClick={() =>
+                              setPortRange(
+                                option.value
+                              )
+                            }
+                          >
+
+                            <div className="port-range-check">
+
+                              {
+                                portRange ===
+                                option.value
+                                  ? "✓"
+                                  : ""
+                              }
+
+                            </div>
+
+                            <strong>
+                              {option.label}
+                            </strong>
+
+                            <span>
+                              {option.description}
+                            </span>
+
+                          </button>
+
+                        )
+                      )
+                    }
+
+                  </div>
+
+                </div>
+
+                {/* =================================================
+                    SCAN OPTIONS
+                ================================================= */}
 
                 <div className="scan-config-header">
 
@@ -1872,16 +2206,21 @@ ${rows}
                       )
                     }
                   >
+
                     {selectedOptions.length}
+
                     {" "}
+
                     SELECTED
 
                     <span>
+
                       {
                         showScanOptions
                           ? "▲"
                           : "▼"
                       }
+
                     </span>
 
                   </button>
@@ -1898,14 +2237,14 @@ ${rows}
                           (option) => (
 
                             <div
-                              key={option.id}
+                              key={
+                                option.id
+                              }
                               className={
                                 selectedOptions.includes(
                                   option.id
                                 )
-
                                   ? "scan-option-card selected"
-
                                   : "scan-option-card"
                               }
                               onClick={() =>
@@ -1916,33 +2255,39 @@ ${rows}
                             >
 
                               <div className="option-icon">
-                                {option.icon}
+
+                                {
+                                  option.icon
+                                }
+
                               </div>
 
                               <div className="option-content">
 
                                 <strong>
-                                  {option.label}
+                                  {
+                                    option.label
+                                  }
                                 </strong>
 
                                 <span>
-                                  {option.description}
+                                  {
+                                    option.description
+                                  }
                                 </span>
 
                               </div>
 
-                              <div
-                                className="option-checkbox"
-                              >
+                              <div className="option-checkbox">
+
                                 {
                                   selectedOptions.includes(
                                     option.id
                                   )
-
                                     ? "✓"
-
                                     : ""
                                 }
+
                               </div>
 
                             </div>
@@ -1956,8 +2301,6 @@ ${rows}
                   )
                 }
 
-                {/* SELECTED */}
-
                 <div className="selected-techniques">
 
                   <span>
@@ -1968,21 +2311,30 @@ ${rows}
 
                     {
                       scanOptions
-                        .filter((option) =>
-                          selectedOptions.includes(
-                            option.id
+                        .filter(
+                          (option) =>
+                            selectedOptions.includes(
+                              option.id
+                            )
+                        )
+                        .map(
+                          (option) => (
+
+                            <span
+                              className="tech-tag"
+                              key={
+                                option.id
+                              }
+                            >
+
+                              {
+                                option.label
+                              }
+
+                            </span>
+
                           )
                         )
-                        .map((option) => (
-
-                          <span
-                            className="tech-tag"
-                            key={option.id}
-                          >
-                            {option.label}
-                          </span>
-
-                        ))
                     }
 
                   </div>
@@ -1994,13 +2346,15 @@ ${rows}
                 <button
                   className={
                     loading
-
                       ? "launch-scan-button scanning"
-
                       : "launch-scan-button"
                   }
-                  onClick={scanTarget}
-                  disabled={loading}
+                  onClick={
+                    scanTarget
+                  }
+                  disabled={
+                    loading
+                  }
                 >
 
                   {
@@ -2012,6 +2366,7 @@ ${rows}
                           <span className="scan-loader"></span>
 
                           SCANNING TARGET...
+
                         </>
 
                       )
@@ -2019,6 +2374,7 @@ ${rows}
                       : (
 
                         <>
+
                           <span>
                             ◎
                           </span>
@@ -2038,8 +2394,6 @@ ${rows}
 
               </section>
 
-              {/* SCANNING ANIMATION */}
-
               {
                 loading && (
 
@@ -2052,18 +2406,35 @@ ${rows}
                       </div>
 
                       <h3>
+
                         Analyzing target
+
                         <span>.</span>
                         <span>.</span>
                         <span>.</span>
+
                       </h3>
 
                       <p>
+
                         Target:
+
                         {" "}
+
                         <strong>
                           {target}
                         </strong>
+
+                        {" "}
+
+                        | Ports:
+
+                        {" "}
+
+                        <strong>
+                          {portRange}
+                        </strong>
+
                       </p>
 
                     </div>
@@ -2099,7 +2470,8 @@ ${rows}
         ==================================================== */}
 
         {
-          activePage === "results" && (
+          activePage ===
+          "results" && (
 
             <div className="page-content page-enter">
 
@@ -2116,12 +2488,32 @@ ${rows}
                   </h2>
 
                   <p>
+
                     {
                       target
                         ? `Analysis for ${target}`
                         : "No active scan loaded"
                     }
+
                   </p>
+
+                  {
+                    results.length > 0 && (
+
+                      <p className="result-port-range">
+
+                        Port Range:
+
+                        {" "}
+
+                        <strong>
+                          {portRange}
+                        </strong>
+
+                      </p>
+
+                    )
+                  }
 
                 </div>
 
@@ -2131,7 +2523,9 @@ ${rows}
                     <button
                       className="new-scan-top-button"
                       onClick={() =>
-                        setActivePage("scan")
+                        setActivePage(
+                          "scan"
+                        )
                       }
                     >
                       + New Scan
@@ -2164,7 +2558,9 @@ ${rows}
 
                       <button
                         onClick={() =>
-                          setActivePage("scan")
+                          setActivePage(
+                            "scan"
+                          )
                         }
                       >
                         Start New Scan →
@@ -2177,8 +2573,6 @@ ${rows}
                   : (
 
                     <>
-
-                      {/* RESULT SUMMARY */}
 
                       <section className="result-summary-grid">
 
@@ -2248,8 +2642,6 @@ ${rows}
 
                       </section>
 
-                      {/* TABLE */}
-
                       <section className="results-table-panel">
 
                         <div className="table-header">
@@ -2268,9 +2660,13 @@ ${rows}
                           </div>
 
                           <div className="result-count">
+
                             {results.length}
+
                             {" "}
+
                             RESULTS
+
                           </div>
 
                         </div>
@@ -2325,14 +2721,19 @@ ${rows}
                                   ) => (
 
                                     <tr
-                                      key={index}
+                                      key={
+                                        index
+                                      }
                                     >
 
                                       <td>
 
                                         <span className="port-number">
 
-                                          {item.port ?? "-"}
+                                          {
+                                            item.port ??
+                                            "-"
+                                          }
 
                                         </span>
 
@@ -2347,17 +2748,20 @@ ${rows}
                                               ""
                                             )
                                               .toLowerCase()
-                                              .includes("open")
-
+                                              .includes(
+                                                "open"
+                                              )
                                               ? "state-open"
-
                                               : "state-other"
                                           }
                                         >
 
                                           <span></span>
 
-                                          {item.state ?? "-"}
+                                          {
+                                            item.state ??
+                                            "-"
+                                          }
 
                                         </span>
 
@@ -2367,7 +2771,10 @@ ${rows}
 
                                         <strong className="service-name">
 
-                                          {item.service ?? "-"}
+                                          {
+                                            item.service ??
+                                            "-"
+                                          }
 
                                         </strong>
 
@@ -2375,7 +2782,10 @@ ${rows}
 
                                       <td className="version-cell">
 
-                                        {item.version ?? "-"}
+                                        {
+                                          item.version ??
+                                          "-"
+                                        }
 
                                       </td>
 
@@ -2387,7 +2797,10 @@ ${rows}
                                           )}`}
                                         >
 
-                                          {item.risk ?? "Unknown"}
+                                          {
+                                            item.risk ??
+                                            "Unknown"
+                                          }
 
                                         </span>
 
@@ -2395,7 +2808,10 @@ ${rows}
 
                                       <td className="recommendation-cell">
 
-                                        {item.recommendation ?? "-"}
+                                        {
+                                          item.recommendation ??
+                                          "-"
+                                        }
 
                                       </td>
 
@@ -2403,7 +2819,8 @@ ${rows}
 
                                         {
                                           item.cves &&
-                                          item.cves.length > 0
+                                          item.cves.length >
+                                            0
 
                                             ? (
 
@@ -2418,7 +2835,9 @@ ${rows}
 
                                                       <div
                                                         className="cve-item"
-                                                        key={cveIndex}
+                                                        key={
+                                                          cveIndex
+                                                        }
                                                       >
 
                                                         <strong>
@@ -2432,7 +2851,6 @@ ${rows}
                                                         {
                                                           cve.cvss_score !==
                                                             null &&
-
                                                           cve.cvss_score !==
                                                             undefined && (
 
@@ -2486,8 +2904,6 @@ ${rows}
 
                       </section>
 
-                      {/* REPORT CENTER */}
-
                       <section className="report-center">
 
                         <div className="report-header">
@@ -2514,7 +2930,9 @@ ${rows}
                         <div className="report-grid">
 
                           <button
-                            onClick={generateHTMLReport}
+                            onClick={
+                              generateHTMLReport
+                            }
                             className="report-card"
                           >
 
@@ -2533,7 +2951,9 @@ ${rows}
                           </button>
 
                           <button
-                            onClick={downloadPDF}
+                            onClick={
+                              downloadPDF
+                            }
                             className="report-card"
                           >
 
@@ -2552,7 +2972,9 @@ ${rows}
                           </button>
 
                           <button
-                            onClick={downloadXML}
+                            onClick={
+                              downloadXML
+                            }
                             className="report-card"
                           >
 
@@ -2573,8 +2995,6 @@ ${rows}
                         </div>
 
                       </section>
-
-                      {/* EMAIL */}
 
                       <section className="email-panel">
 
@@ -2600,7 +3020,9 @@ ${rows}
                           <input
                             type="email"
                             placeholder="security@example.com"
-                            value={recipientEmail}
+                            value={
+                              recipientEmail
+                            }
                             onChange={(e) =>
                               setRecipientEmail(
                                 e.target.value
@@ -2609,7 +3031,9 @@ ${rows}
                           />
 
                           <button
-                            onClick={sendEmailReport}
+                            onClick={
+                              sendEmailReport
+                            }
                           >
                             Send →
                           </button>
@@ -2633,7 +3057,8 @@ ${rows}
         ==================================================== */}
 
         {
-          activePage === "history" && (
+          activePage ===
+          "history" && (
 
             <div className="page-content page-enter">
 
@@ -2661,7 +3086,9 @@ ${rows}
 
                     <button
                       className="delete-all-button"
-                      onClick={clearAllHistory}
+                      onClick={
+                        clearAllHistory
+                      }
                     >
                       Delete All
                     </button>
@@ -2693,7 +3120,9 @@ ${rows}
 
                       <button
                         onClick={() =>
-                          setActivePage("scan")
+                          setActivePage(
+                            "scan"
+                          )
                         }
                       >
                         Start Your First Scan →
@@ -2724,9 +3153,14 @@ ${rows}
 
                               <div className="history-index">
 
-                                {String(
-                                  index + 1
-                                ).padStart(2, "0")}
+                                {
+                                  String(
+                                    index + 1
+                                  ).padStart(
+                                    2,
+                                    "0"
+                                  )
+                                }
 
                               </div>
 
@@ -2737,15 +3171,13 @@ ${rows}
                                   <div>
 
                                     <span className="history-label">
-
                                       TARGET
-
                                     </span>
 
                                     <h3>
-
-                                      {item.target}
-
+                                      {
+                                        item.target
+                                      }
                                     </h3>
 
                                   </div>
@@ -2766,11 +3198,9 @@ ${rows}
 
                                     {
                                       item.created_at
-
                                         ? new Date(
                                             item.created_at
                                           ).toLocaleString()
-
                                         : "Unknown"
                                     }
 
@@ -2790,6 +3220,21 @@ ${rows}
                                     }
 
                                     s
+
+                                  </span>
+
+                                  <span>
+
+                                    ◉
+
+                                    Ports:
+
+                                    {" "}
+
+                                    {
+                                      item.port_range ||
+                                      "1-100"
+                                    }
 
                                   </span>
 
