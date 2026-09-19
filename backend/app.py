@@ -314,11 +314,29 @@ def scan():
             }), 400
 
 
+        # ----------------------------------------------------
+        # GET TARGET
+        # ----------------------------------------------------
+
         target = data.get(
             "target",
             ""
         ).strip()
 
+
+        # ----------------------------------------------------
+        # GET PORT RANGE
+        # ----------------------------------------------------
+
+        port_range = data.get(
+            "port_range",
+            "1-100"
+        )
+
+
+        # ----------------------------------------------------
+        # VALIDATE TARGET
+        # ----------------------------------------------------
 
         if not target:
 
@@ -331,7 +349,12 @@ def scan():
 
 
         print(
-            f"Starting scan for user {user_id} ({username}): {target}"
+            f"Starting scan for user "
+            f"{user_id} ({username}): {target}"
+        )
+
+        print(
+            f"Requested port range: {port_range}"
         )
 
 
@@ -347,7 +370,8 @@ def scan():
         # ----------------------------------------------------
 
         results = scan_target(
-            target
+            target,
+            port_range
         )
 
 
@@ -382,18 +406,25 @@ def scan():
                     "user_id":
                     str(user_id),
 
-                    # Actual logged-in username
+                    # Logged-in username
                     "username":
                     username,
 
+                    # Scan target
                     "target":
                     target,
 
+                    # Scan results
                     "results":
                     results,
 
+                    # Scan duration
                     "scan_duration":
-                    scan_duration
+                    scan_duration,
+
+                    # Selected port range
+                    "port_range":
+                    port_range
 
                 }).execute()
 
@@ -401,6 +432,10 @@ def scan():
                 print(
                     f"Scan saved successfully for user "
                     f"{user_id} ({username})"
+                )
+
+                print(
+                    f"Saved port range: {port_range}"
                 )
 
 
@@ -428,6 +463,9 @@ def scan():
             "target":
             target,
 
+            "port_range":
+            port_range,
+
             "results":
             results,
 
@@ -435,6 +473,21 @@ def scan():
             scan_duration
 
         }), 200
+
+
+    except ValueError as e:
+
+        print(
+            "PORT RANGE ERROR:",
+            str(e)
+        )
+
+        return jsonify({
+
+            "error":
+            str(e)
+
+        }), 400
 
 
     except Exception as e:
