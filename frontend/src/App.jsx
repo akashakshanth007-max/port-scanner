@@ -2056,43 +2056,70 @@ ${rows}
 
                 </div>
 
-                <div className="target-section">
+                <div className="target-section target-section-enhanced">
 
-                  <label>
-                    TARGET ADDRESS
-                  </label>
-
-                  <div className="target-input-wrapper">
-
-                    <span className="target-prefix">
-                      ›_
-                    </span>
-
-                    <input
-                      type="text"
-                      placeholder="example.com or 192.168.1.1"
-                      value={target}
-                      onChange={(e) =>
-                        setTarget(
-                          e.target.value
-                        )
-                      }
-                      onKeyDown={(e) => {
-
-                        if (
-                          e.key ===
-                          "Enter"
-                        ) {
-                          scanTarget();
-                        }
-
-                      }}
-                    />
-
-                    <div className="target-status">
-                      READY
+                  <div className="target-heading-row">
+                    <div className="target-heading-copy">
+                      <div className="target-title-row">
+                        <span className="target-icon">◎</span>
+                        <label>TARGET ADDRESS</label>
+                      </div>
+                      <p>Enter an IP address, domain name or hostname.</p>
                     </div>
 
+                    <div className={`target-status-badge ${target.trim() ? "ready" : "idle"}`}>
+                      <span></span>
+                      {target.trim() ? "TARGET READY" : "AWAITING TARGET"}
+                    </div>
+                  </div>
+
+                  <div className={`target-input-row ${target.trim() ? "has-value" : ""}`}>
+                    <div className="target-input-wrapper target-input-enhanced">
+                      <span className="target-prefix">›_</span>
+
+                      <input
+                        type="text"
+                        placeholder="example.com or 192.168.1.1"
+                        value={target}
+                        autoComplete="off"
+                        spellCheck="false"
+                        onChange={(e) => setTarget(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            scanTarget();
+                          }
+                        }}
+                      />
+
+                      {target.trim() && (
+                        <span className="target-valid-icon">✓</span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="target-clear-button"
+                      onClick={() => setTarget("")}
+                      disabled={!target.trim()}
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  <div className="target-examples">
+                    <span className="target-examples-label">EXAMPLES</span>
+                    <button type="button" onClick={() => setTarget("example.com")}>example.com</button>
+                    <button type="button" onClick={() => setTarget("192.168.1.1")}>192.168.1.1</button>
+                    <button type="button" onClick={() => setTarget("10.0.0.1")}>10.0.0.1</button>
+                    <button type="button" onClick={() => setTarget("localhost")}>localhost</button>
+                  </div>
+
+                  <div className={`target-ready-panel ${target.trim() ? "active" : ""}`}>
+                    <span className="target-ready-check">✓</span>
+                    <div>
+                      <strong>{target.trim() ? "Target is ready" : "Target required"}</strong>
+                      <p>{target.trim() ? `${target.trim()} will be scanned` : "Enter a target address to begin the scan"}</p>
+                    </div>
                   </div>
 
                 </div>
@@ -2930,66 +2957,36 @@ ${rows}
                         <div className="report-grid">
 
                           <button
-                            onClick={
-                              generateHTMLReport
-                            }
-                            className="report-card"
+                            type="button"
+                            onClick={generateHTMLReport}
+                            className="report-card report-card-html"
                           >
-
-                            <div>
-                              ◫
-                            </div>
-
-                            <strong>
-                              HTML Report
-                            </strong>
-
-                            <span>
-                              Interactive report
-                            </span>
-
+                            <div className="report-card-icon">&lt;/&gt;</div>
+                            <strong>HTML Report</strong>
+                            <span>Interactive report</span>
+                            <small>Open security intelligence</small>
                           </button>
 
                           <button
-                            onClick={
-                              downloadPDF
-                            }
-                            className="report-card"
+                            type="button"
+                            onClick={downloadPDF}
+                            className="report-card report-card-pdf"
                           >
-
-                            <div>
-                              ▤
-                            </div>
-
-                            <strong>
-                              PDF Report
-                            </strong>
-
-                            <span>
-                              Professional document
-                            </span>
-
+                            <div className="report-card-icon">PDF</div>
+                            <strong>PDF Report</strong>
+                            <span>Professional document</span>
+                            <small>Download formatted report</small>
                           </button>
 
                           <button
-                            onClick={
-                              downloadXML
-                            }
-                            className="report-card"
+                            type="button"
+                            onClick={downloadXML}
+                            className="report-card report-card-xml"
                           >
-
-                            <div>
-                              &lt;/&gt;
-                            </div>
-
-                            <strong>
-                              XML Report
-                            </strong>
-
-                            <span>
-                              Machine readable data
-                            </span>
-
+                            <div className="report-card-icon">&lt;/&gt;</div>
+                            <strong>XML Report</strong>
+                            <span>Machine readable data</span>
+                            <small>Export structured scan data</small>
                           </button>
 
                         </div>
@@ -3031,11 +3028,12 @@ ${rows}
                           />
 
                           <button
-                            onClick={
-                              sendEmailReport
-                            }
+                            type="button"
+                            className="email-send-button"
+                            onClick={sendEmailReport}
                           >
-                            Send →
+                            <span>✈</span>
+                            Send Report
                           </button>
 
                         </div>
